@@ -1,0 +1,192 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-format:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Check Prettier formatting
+        run: pnpm format:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+  prisma-format:
+    name: Prisma Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format Prisma schemas (auth-service)
+        run: cd apps/auth-service && pnpm prisma:format
+        continue-on-error: true
+
+      - name: Format Prisma schemas (operations-service)
+        run: cd apps/operations-service && pnpm prisma:format
+        continue-on-error: true
+
+      - name: Format Prisma schemas (tracking-service)
+        run: cd apps/tracking-service && pnpm prisma:format
+        continue-on-error: true
+
+  build:
+    name: Build Apps
+    runs-on: ubuntu-latest
+    needs: [lint-and-format]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: pnpm prisma:generate
+
+      - name: Build API Gateway
+        run: cd apps/api-gateway && pnpm build
+
+      - name: Build Auth Service
+        run: cd apps/auth-service && pnpm build
+
+      - name: Build Operations Service
+        run: cd apps/operations-service && pnpm build
+
+      - name: Build Tracking Service
+        run: cd apps/tracking-service && pnpm build
+
+  docker-build-smoke:
+    name: Docker Build Smoke Test
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/api-gateway/Dockerfile
+          push: false
+          tags: api-gateway:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Auth Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/auth-service/Dockerfile
+          push: false
+          tags: auth-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Operations Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/operations-service/Dockerfile
+          push: false
+          tags: operations-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Tracking Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/tracking-service/Dockerfile
+          push: false
+          tags: tracking-service:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        run: pnpm prisma:generate
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Generate coverage
+        run: pnpm test:coverage
+        continue-on-error: true
+

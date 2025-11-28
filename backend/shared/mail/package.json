@@ -1,0 +1,22 @@
+{
+  "name": "@aaron/mail",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@aaron/common": "workspace:*",
+    "googleapis": "^128.0.0",
+    "nodemailer": "^6.10.1",
+    "resend": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

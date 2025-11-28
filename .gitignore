@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+
+# Production
+dist/
+build/
+.next/
+out/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local env files
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# Turbo
+.turbo
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+# --- Infraestructura y Datos de Docker ---
+# Ignorar completamente la carpeta de datos de PostgreSQL
+infra/pgdata/
+infra/pgdata/**
+
+# Ignorar archivos temporales y logs en infra
+infra/**/*.log
+infra/**/*.tmp
+infra/**/*.pid
+infra/**/*.lock
+infra/**/*.dump
+infra/**/*.backup
+infra/**/*.sql.gz
+infra/**/*.tar
+infra/**/*.tar.gz
+infra/**/*.zip
+
+# Archivos de Docker que pueden ser grandes
+*.sql
+*.dump
+*.backup
+*.sql.gz
+*.tar.gz
+
+# Volúmenes de Docker
+volumes/
+data/
+*.volume
+
+# Mantener solo configuraciones (nginx, docker-compose, etc.)
+# Los archivos de configuración en infra/nginx/ y otros se rastrean normalmente

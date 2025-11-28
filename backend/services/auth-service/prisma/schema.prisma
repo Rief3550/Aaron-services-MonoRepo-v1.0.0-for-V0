@@ -1,0 +1,83 @@
+// Auth Service - Schema: auth
+// Usuarios, roles, sesiones, auditoría de emails
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  output          = "../../../node_modules/@aaron/prisma-client-auth"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth"]
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String?
+  fullName        String?
+  googleId        String?  @unique
+  roles           Role[]   @relation("UserRoles")
+  isEmailVerified Boolean  @default(false)
+  active          Boolean  @default(true)
+  phone           String?
+  zone            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sessions    Session[]
+  emailAudits EmailAudit[]
+
+  @@map("users")
+  @@schema("auth")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique // ADMIN, OPERATOR, CREW, CUSTOMER
+  description String?
+  users     User[]   @relation("UserRoles")
+  createdAt DateTime @default(now())
+
+  @@map("roles")
+  @@schema("auth")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+  @@schema("auth")
+}
+
+model EmailAudit {
+  id        String   @id @default(uuid())
+  userId    String?
+  email     String
+  type      String // VERIFY|RESET|NOTICE
+  status    String // SENT|DELIVERED|FAILED
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([email, type, createdAt]) // Para idempotency checks más eficientes
+  @@map("email_audit")
+  @@schema("auth")
+}

@@ -1,0 +1,841 @@
+// Operations Service - Schema: operations
+// Suscripciones, planes, órdenes de trabajo, cuadrillas, agenda, métricas
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  output          = "../../../node_modules/@aaron/prisma-client-ops"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["operations"]
+}
+
+// =========================
+// Enums
+// =========================
+
+enum SubscriptionStatus {
+  ACTIVE
+  REVISION      // Pendiente de visita técnica/auditoría
+  GRACE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+  PAUSED
+
+  @@schema("operations")
+}
+
+enum WorkOrderState {
+  PENDIENTE
+  ASIGNADA
+  CONFIRMADA
+  EN_CAMINO
+  PROGRAMADA
+  VISITA
+  VISITADA_NO_FINALIZADA
+  VISITADA_FINALIZADA
+  COMENZADA
+  EN_PROGRESO
+  FINALIZADA
+  CANCELADA
+  PAUSADA
+  SUSPENDIDA
+
+  @@schema("operations")
+}
+
+enum PaymentStatus {
+  PENDING
+  POSTED
+  FAILED
+  VOID
+
+  @@schema("operations")
+}
+
+enum PaymentType {
+  ADMIN_MANUAL
+  GATEWAY
+
+  @@schema("operations")
+}
+
+enum BillingPeriod {
+  MONTHLY
+
+  @@schema("operations")
+}
+
+enum CrewAvailability {
+  AVAILABLE
+  BUSY
+  OFFLINE
+
+  @@schema("operations")
+}
+
+enum TipoPersona {
+  INDIVIDUAL
+  EMPRESA
+
+  @@schema("operations")
+}
+
+enum EstadoCliente {
+  PENDIENTE   // Recién registrado, esperando auditoría
+  EN_PROCESO  // Auditoría asignada, en proceso de visita y documentación
+  ACTIVO      // Auditoría aprobada, cliente operativo
+  SUSPENDIDO  // Suspendido por falta de pago u otro motivo
+  INACTIVO    // Dado de baja definitivamente
+
+  @@schema("operations")
+}
+
+enum TipoPropiedad {
+  DEPARTAMENTO
+  CASA
+  PH
+  COUNTRY
+  LOCAL
+  OTRO
+
+  @@schema("operations")
+}
+
+enum TipoConstruccion {
+  LOSA
+  CHAPA
+  MIXTO
+  OTRO
+
+  @@schema("operations")
+}
+
+enum EstadoAuditoria {
+  PENDIENTE
+  REALIZADA
+
+  @@schema("operations")
+}
+
+enum EstadoChecklistItem {
+  OK
+  RIESGO_MEDIO
+  RIESGO_ALTO
+
+  @@schema("operations")
+}
+
+enum CanalOrden {
+  APP
+  TELEFONO
+  WHATSAPP
+  OTRO
+
+  @@schema("operations")
+}
+
+enum PrioridadOrden {
+  BAJA
+  MEDIA
+  ALTA
+  EMERGENCIA
+
+  @@schema("operations")
+}
+
+enum TipoDocumento {
+  DNI
+  PASAPORTE
+  CUIT
+  CUIL
+  OTRO
+
+  @@schema("operations")
+}
+
+enum Sexo {
+  MASCULINO
+  FEMENINO
+  OTRO
+
+  @@schema("operations")
+}
+
+enum EstadoCivil {
+  SOLTERO
+  CASADO
+  DIVORCIADO
+  VIUDO
+  UNION_CONVIVENCIAL
+
+  @@schema("operations")
+}
+
+enum FormaPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA_CREDITO
+  TARJETA_DEBITO
+  DEBITO_AUTOMATICO
+  MERCADO_PAGO
+
+  @@schema("operations")
+}
+
+enum TipoTramite {
+  ALTA
+  BAJA
+  MODIFICACION
+  REINCORPORACION
+
+  @@schema("operations")
+}
+
+enum EstadoContrato {
+  BORRADOR
+  PENDIENTE_FIRMA
+  FIRMADO
+  VIGENTE
+  VENCIDO
+  RESCINDIDO
+
+  @@schema("operations")
+}
+
+// =========================
+// Catálogos y planes
+// =========================
+
+// Cliente - Información completa del cliente (Formulario de Alta de Afiliado)
+// Vinculado 1:1 con User de auth-service mediante userId
+model Client {
+  id                   String         @id @default(uuid())
+  nroAfiliado          String?        @unique // Número de afiliado (uso interno)
+  userId               String         @unique  // Vincula con User.id de auth-service
+  
+  // Tipo de persona
+  tipoPersona          TipoPersona    @default(INDIVIDUAL)
+  
+  // Datos personales (Afiliado Titular)
+  nombreCompleto       String?        // Apellido y nombre
+  tipoDocumento        TipoDocumento? // DNI, Pasaporte, etc.
+  documento            String?        // Número de documento
+  cuilCuit             String?        // CUIL/CUIT
+  sexo                 Sexo?
+  fechaNacimiento      DateTime?
+  nacionalidad         String?
+  estadoCivil          EstadoCivil?
+  discapacitado        Boolean        @default(false)
+  cargo                String?        // Cargo (si aplica)
+  
+  // Datos de contacto
+  email                String
+  telefono             String?        // Teléfono particular
+  telefonoCelular      String?        // Teléfono celular
+  telefonoEmergencia   String?        // Teléfono de emergencia
+  telefonoAlt          String?
+  
+  // Dirección del afiliado
+  calle                String?
+  numero               String?
+  piso                 String?
+  departamento         String?
+  localidad            String?
+  partido              String?
+  provincia            String?
+  codigoPostal         String?
+  
+  // Datos de empresa (si tipoPersona = EMPRESA)
+  razonSocial          String?
+  nroEmpresa           String?
+  cuitEmpresa          String?
+  calleEmpresa         String?
+  numeroEmpresa        String?
+  pisoEmpresa          String?
+  dptoEmpresa          String?
+  localidadEmpresa     String?
+  partidoEmpresa       String?
+  provinciaEmpresa     String?
+  codigoPostalEmpresa  String?
+  
+  // Dirección de facturación (puede ser diferente)
+  direccionFacturacion String?
+  ciudad               String?
+  
+  // Ubicación geográfica (capturada en signup)
+  lat                  Float?         // Latitud
+  lng                  Float?         // Longitud
+  
+  // Estado del cliente
+  estado               EstadoCliente  @default(PENDIENTE)
+  
+  // Auditoría
+  auditorAsignadoId    String?        // userId del auditor/cuadrilla asignada
+  auditorAsignadoNombre String?       // Nombre del auditor
+  fechaAsignacionAuditor DateTime?    // Fecha en que se asignó el auditor
+  fechaVisitaAuditoria  DateTime?     // Fecha en que se realizó la visita
+  
+  // Datos adicionales
+  datosAdicionales     String?
+  
+  // Timestamps
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  // Relaciones
+  properties    CustomerProperty[]
+  subscriptions Subscription[]
+  workOrders    WorkOrder[]
+  payments      Payment[]
+  contracts     Contract[]
+  auditForm     AuditForm?
+
+  @@schema("operations")
+  @@map("clients")
+  @@index([userId])
+  @@index([nroAfiliado])
+  @@index([documento])
+  @@index([cuilCuit])
+  @@index([email])
+  @@index([estado])
+}
+
+// Tipo de Trabajo - Catálogo de servicios
+model WorkType {
+  id          String   @id @default(uuid())
+  nombre      String
+  descripcion String?
+  costoBase   Decimal? @db.Decimal(10, 2)
+  unidad      String?  // "por visita", "por hora", etc.
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workOrders WorkOrder[]
+  plans      Plan[]
+
+  @@schema("operations")
+  @@map("work_types")
+  @@index([activo])
+}
+
+model Plan {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  price         Decimal       @db.Decimal(10, 2)
+  currency      String        @default("ARS")
+  billingPeriod BillingPeriod @default(MONTHLY)
+  active        Boolean       @default(true)
+  restrictions  Json?         // { propertyType: [], maxM2: 100 }
+  // Características del plan (según formulario)
+  caracteristicas Json?       // Array de strings con los servicios incluidos
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  subscriptions Subscription[]
+  priceHistory  PriceHistory[]
+  workTypes     WorkType[]
+  contracts     Contract[]
+  auditForms    AuditForm[]
+
+  @@schema("operations")
+  @@map("plans")
+}
+
+model PriceHistory {
+  id     String   @id @default(uuid())
+  planId String
+  price  Decimal  @db.Decimal(10, 2)
+  from   DateTime
+  to     DateTime?
+  plan   Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@schema("operations")
+  @@map("price_history")
+  @@index([planId])
+  @@index([from])
+}
+
+// =========================
+// Clientes, propiedades y suscripciones
+// =========================
+
+model CustomerProperty {
+  id                      String              @id @default(uuid())
+  clientId                String?
+  userId                  String
+  alias                   String?
+  address                 String
+  provincia               String?
+  ciudad                  String?
+  barrio                  String?
+  lat                     Float
+  lng                     Float
+  geohash                 String?
+  tipoPropiedad           TipoPropiedad?
+  tipoConstruccion        TipoConstruccion?
+  ambientes               Int?
+  banos                   Int?
+  superficieCubiertaM2    Decimal?            @db.Decimal(10, 2)
+  superficieDescubiertaM2 Decimal?            @db.Decimal(10, 2)
+  checklist               Json?
+  summary                 String?
+  status                  String              @default("PRE_ONBOARD") // PRE_ONBOARD|PRE_APPROVED|ACTIVE|REJECTED
+  auditedByUserId         String?
+  auditedAt               DateTime?
+  notes                   String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  subscriptions Subscription[]
+  workOrders    WorkOrder[]
+  preApprovals  PreApproval[]
+  contracts     Contract[]
+
+  @@schema("operations")
+  @@map("customer_properties")
+  @@index([clientId])
+  @@index([userId])
+  @@index([status])
+  @@index([geohash])
+}
+
+model PreApproval {
+  id            String   @id @default(uuid())
+  userId        String?
+  propertyId    String
+  auditorUserId String?
+  status        String   @default("PENDING") // PENDING|APPROVED|REJECTED
+  answers       Json?
+  attachments   Json?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  decidedAt     DateTime?
+
+  property CustomerProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@schema("operations")
+  @@map("pre_approvals")
+  @@index([propertyId])
+  @@index([status])
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  clientId           String?
+  userId             String
+  propertyId         String?
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  fechaInicio        DateTime           @default(now())
+  fechaFin           DateTime?
+  montoMensual       Decimal?           @db.Decimal(10, 2)
+  moneda             String             @default("ARS")
+  cicloFacturacion   String             @default("mensual")
+  diaCobro           Int?
+  startDate          DateTime           @default(now())
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  graceUntil         DateTime?
+  nextChargeAt       DateTime?
+  billingDay         Int?
+  suspendedAt        DateTime?
+  canceledAt         DateTime?
+  cancelReason       String?
+  planSnapshot       Json?
+  meta               Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  client       Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  plan         Plan               @relation(fields: [planId], references: [id])
+  property     CustomerProperty?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  workOrders   WorkOrder[]
+  auditVisits  AuditVisit[]
+  contracts    Contract[]
+
+  @@schema("operations")
+  @@map("subscriptions")
+  @@index([clientId])
+  @@index([userId])
+  @@index([status])
+  @@index([nextChargeAt])
+  @@index([propertyId])
+}
+
+// Auditoría Inicial - Visitas de inspección
+model AuditVisit {
+  id                     String               @id @default(uuid())
+  subscriptionId         String
+  auditorId              String?
+  fechaProgramada        DateTime
+  fechaRealizada         DateTime?
+  estado                 EstadoAuditoria      @default(PENDIENTE)
+  observacionesGenerales String?
+  fotos                  Json?                // Array de URLs o metadata
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  subscription   Subscription          @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  checklistItems AuditChecklistItem[]
+
+  @@schema("operations")
+  @@map("audit_visits")
+  @@index([subscriptionId])
+  @@index([auditorId])
+  @@index([estado])
+}
+
+// Items del Checklist de Auditoría
+model AuditChecklistItem {
+  id              String               @id @default(uuid())
+  auditVisitId    String
+  categoria       String               // "Instalación eléctrica", "Gas", "Humedad", etc.
+  descripcionItem String
+  estado          EstadoChecklistItem  @default(OK)
+  comentarios     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  auditVisit AuditVisit @relation(fields: [auditVisitId], references: [id], onDelete: Cascade)
+
+  @@schema("operations")
+  @@map("audit_checklist_items")
+  @@index([auditVisitId])
+  @@index([estado])
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  clientId         String?
+  subscriptionId   String?
+  type             PaymentType   @default(ADMIN_MANUAL)
+  status           PaymentStatus @default(PENDING)
+  fechaPago        DateTime?
+  amount           Decimal       @db.Decimal(10, 2)
+  monto            Decimal       @db.Decimal(10, 2)
+  currency         String        @default("ARS")
+  moneda           String        @default("ARS")
+  provider         String
+  method           String?
+  metodo           String?
+  periodoDesde     DateTime?
+  periodoHasta     DateTime?
+  comprobanteUrl   String?
+  intentId         String?
+  dueDate          DateTime?
+  paidAt           DateTime?
+  recordedByUserId String?
+  note             String?
+  observaciones    String?
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@schema("operations")
+  @@map("payments")
+  @@index([clientId])
+  @@index([subscriptionId])
+  @@index([intentId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// =========================
+// Cuadrillas y órdenes
+// =========================
+
+model Crew {
+  id           String           @id @default(uuid())
+  name         String
+  zona         String?          // Geographic zone
+  members      Json?    // lista miembros
+  type         String   @default("crew")
+  availability CrewAvailability @default(AVAILABLE)
+  homeBase     Json?
+  state        String   @default("desocupado") // legacy estado general
+  notes        String?
+  progress     Int      @default(0)            // %
+  lat          Float?
+  lng          Float?
+  lastLocationAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workOrders WorkOrder[]
+
+  @@schema("operations")
+  @@map("crews")
+  @@index([state])
+  @@index([availability])
+}
+
+model WorkOrder {
+  id                     String          @id @default(uuid())
+  clientId               String?
+  customerId             String
+  propertyId             String?
+  subscriptionId         String?
+  workTypeId             String?
+  titulo                 String?
+  address                String
+  lat                    Float?
+  lng                    Float?
+  location               Json?
+  serviceCategory        String          // plomería|electricidad|gas|pintura|mampostería...
+  description            String?
+  canal                  CanalOrden?
+  prioridad              PrioridadOrden?
+  state                  WorkOrderState  @default(PENDIENTE)
+  crewId                 String?
+  operarioResponsableId  String?
+  scheduledAt            DateTime?
+  fechaProgramada        DateTime?
+  horaProgramada         String?
+  visitWindowStart       DateTime?
+  visitWindowEnd         DateTime?
+  startedAt              DateTime?
+  completedAt            DateTime?
+  canceledAt             DateTime?
+  cancelReason           String?
+  slaHours               Int?
+  priority               String?
+  // Campos de cantidad/unidades del trabajo
+  cantidad               Decimal?        @db.Decimal(10, 2)  // Ej: 50 (m2), 3 (horas), 1 (visita)
+  unidadCantidad         String?         // "m2", "hora", "visita", "unidad"
+  tiempoEstimadoHoras    Decimal?        @db.Decimal(5, 2)   // Tiempo estimado en horas
+  tiempoRealHoras        Decimal?        @db.Decimal(5, 2)   // Tiempo real trabajado
+  // Costos
+  costoEstimado          Decimal?        @db.Decimal(10, 2)
+  costoFinal             Decimal?        @db.Decimal(10, 2)
+  detalleCostos          Json?           // { manoDeObra: X, materiales: Y, ... }
+  // Notas
+  notasCliente           String?
+  notasOperario          String?
+  progress               Int             @default(0)
+  createdByUserId        String?
+  assignedByUserId       String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  client       Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  workType     WorkType?          @relation(fields: [workTypeId], references: [id], onDelete: SetNull)
+  crew         Crew?              @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  subscription Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  property     CustomerProperty?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  timeline     WorkOrderEvent[]
+
+  @@schema("operations")
+  @@map("work_orders")
+  @@index([clientId])
+  @@index([customerId])
+  @@index([workTypeId])
+  @@index([state])
+  @@index([crewId])
+  @@index([createdAt])
+  @@index([propertyId])
+  @@index([subscriptionId])
+  @@index([scheduledAt])
+}
+
+model WorkOrderEvent {
+  id          String         @id @default(uuid())
+  workOrderId String
+  at          DateTime       @default(now())
+  type        String         // asignada|confirmada|en_camino|visitada_no_finalizada|visitada_finalizada|pausada|cancelada|suspendida
+  stateFrom   WorkOrderState?
+  stateTo     WorkOrderState?
+  actorUserId String?
+  actorRole   String?
+  note        String?
+  meta        Json?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@schema("operations")
+  @@map("work_order_events")
+  @@index([workOrderId])
+  @@index([at])
+  @@index([type])
+}
+
+// =========================
+// Métricas
+// =========================
+
+model Metric {
+  id         String   @id @default(uuid())
+  name       String
+  category   String?  // performance, revenue, usage, claim_type, etc.
+  value      Decimal  @db.Decimal(10, 2)
+  unit       String?
+  metadata   Json?
+  recordedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@schema("operations")
+  @@map("metrics")
+  @@index([name])
+  @@index([category])
+  @@index([recordedAt])
+}
+
+// =========================
+// Contratos (Contrato de Locación de Servicios)
+// =========================
+
+// Contrato digitalizado - Reemplaza el formulario físico
+model Contract {
+  id                    String          @id @default(uuid())
+  nroContrato           String?         @unique // Número de contrato interno
+  
+  // Relaciones
+  clientId              String
+  propertyId            String?
+  subscriptionId        String?
+  
+  // Tipo de trámite
+  tipoTramite           TipoTramite     @default(ALTA)
+  esOriginal            Boolean         @default(true)
+  esComplementaria      Boolean         @default(false)
+  
+  // Datos del contrato
+  ciudadFirma           String?         // Ciudad donde se firma
+  fechaFirma            DateTime?       // Fecha de firma
+  fechaTramite          DateTime        @default(now())
+  fechaVigenciaInicio   DateTime?       // Fecha inicio vigencia
+  fechaVigenciaFin      DateTime?       // Fecha fin vigencia (24 meses típicamente)
+  
+  // Plan y cobertura
+  planId                String?
+  planNombre            String?         // Snapshot del nombre del plan
+  cobertura             String?         // Descripción de cobertura
+  motivoCambioCobertura String?
+  motivoCambioPlan      String?
+  motivoBaja            String?
+  
+  // Forma de pago
+  formaPago             FormaPago?
+  valorCuotaInicial     Decimal?        @db.Decimal(10, 2)
+  valorCuotaMensual     Decimal?        @db.Decimal(10, 2)
+  
+  // Ejecutivo/Auditor que realizó el contrato
+  ejecutivoId           String?         // userId del ejecutivo/auditor
+  ejecutivoNombre       String?
+  
+  // Especificaciones adicionales (tabla del formulario)
+  especificaciones      Json?           // Array de { cantidad, especificacion, observacion }
+  
+  // Cláusulas aceptadas
+  clausulasAceptadas    Json?           // { compromiso: true, precio: true, vigencia: true, rescision: true, cesion: true }
+  
+  // Firmas digitales
+  firmaClienteData      String?         @db.Text // Base64 de la firma del cliente
+  firmaClienteFecha     DateTime?
+  firmaClienteIP        String?
+  firmaClienteDispositivo String?
+  
+  firmaEmpresaData      String?         @db.Text // Base64 de la firma del representante
+  firmaEmpresaFecha     DateTime?
+  firmaEmpresaNombre    String?         // Nombre de quien firma por la empresa
+  firmaEmpresaCargo     String?
+  firmaEmpresaSello     String?         @db.Text // Base64 del sello si aplica
+  
+  // Estado del contrato
+  estado                EstadoContrato  @default(BORRADOR)
+  
+  // Geolocalización de firma (auditor en domicilio)
+  latFirma              Float?
+  lngFirma              Float?
+  
+  // Documento PDF generado
+  pdfUrl                String?         // URL del PDF firmado
+  pdfGeneradoAt         DateTime?
+  
+  // Metadata adicional
+  observaciones         String?
+  metadata              Json?
+  
+  // Timestamps
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Relaciones
+  client                Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan                  Plan?           @relation(fields: [planId], references: [id], onDelete: SetNull)
+  property              CustomerProperty? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  subscription          Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  
+  @@schema("operations")
+  @@map("contracts")
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([subscriptionId])
+  @@index([estado])
+  @@index([fechaFirma])
+  @@index([nroContrato])
+}
+
+// Formulario de Auditoría - Almacena los datos del formulario físico completado
+model AuditForm {
+  id                    String          @id @default(uuid())
+  clientId              String          @unique // Un formulario por cliente
+  
+  // Datos del formulario (uso interno)
+  tipoTramite           TipoTramite     @default(ALTA)
+  esOriginal            Boolean         @default(true)
+  esComplementaria      Boolean         @default(false)
+  fechaTramite          DateTime        @default(now())
+  fechaVigenciaCobertura DateTime?
+  
+  // Plan y cobertura
+  planId                String?
+  planNombre            String?
+  motivoCambioPlan      String?
+  cobertura             String?
+  motivoCambioCobertura String?
+  
+  // Forma de pago y ejecutivo
+  formaPago             FormaPago?
+  ejecutivoId           String?
+  ejecutivoNombre       String?
+  
+  // Motivo de baja (si aplica)
+  motivoBaja            String?
+  
+  // Especificaciones (tabla del formulario)
+  especificaciones      Json?           // Array de { cantidad, especificacion, observacion }
+  
+  // Datos completos del formulario (JSON completo para referencia)
+  datosCompletos        Json?           // Almacena todos los datos del formulario
+  
+  // Estado
+  completado            Boolean         @default(false)
+  fechaCompletado       DateTime?
+  completadoPor         String?         // userId de quien completó
+  
+  // Timestamps
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  // Relaciones
+  client                Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan                  Plan?           @relation(fields: [planId], references: [id], onDelete: SetNull)
+  
+  @@schema("operations")
+  @@map("audit_forms")
+  @@index([clientId])
+  @@index([completado])
+  @@index([fechaTramite])
+}

@@ -1,0 +1,74 @@
+services:
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: aaron-redis-dev
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - aaron-network
+
+  # Frontend Application (Next.js)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCxDpBudd3WuLMHmNpUbFeDdExXZuKOaJY
+        - NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=7bcc2d14e02b6d88e92b9966
+    container_name: aaron-app-dev
+    ports:
+      - "3100:3000" # API Gateway (puerto externo 3100 → puerto interno 3000)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env.development
+    environment:
+      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://root:Ollieconverse123@host.docker.internal:5432/postgres
+      - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCxDpBudd3WuLMHmNpUbFeDdExXZuKOaJY
+      - NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=7bcc2d14e02b6d88e92b9966
+      # Apuntar al API Gateway en puerto 3000
+      - NEXT_PUBLIC_AUTH_URL=http://localhost:3000/auth
+      - NEXT_PUBLIC_OPS_URL=http://localhost:3000/ops
+      - NEXT_PUBLIC_TRACKING_URL=http://localhost:3000/track
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3003
+      # URLs internas para el API Gateway (dentro del contenedor)
+      - AUTH_URL=http://localhost:3001
+      - OPS_URL=http://localhost:3002
+      - TRACK_URL=ws://localhost:3003
+      # JWT Configuration - usar el mismo secret para auth-service y API Gateway
+      - JWT_ACCESS_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
+      - JWT_ACCESS_TTL=${JWT_EXPIRES_IN:-15m}
+      - JWT_REFRESH_TTL=${JWT_REFRESH_EXPIRES_IN:-7d}
+      # Email Configuration - Gmail API con OAuth2
+      # IMPORTANTE: GMAIL_USER debe ser el email que autorizó en OAuth Playground
+      - MAIL_PROVIDER=gmail
+      - GMAIL_USER=rierafederico30.4857@gmail.com
+      - GMAIL_CLIENT_ID=378687539178-436enr4v3l5tv9m1bkb26f0b6e7l764a.apps.googleusercontent.com
+      - GMAIL_CLIENT_SECRET=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
+      - GMAIL_REFRESH_TOKEN=1//04b3tTDs06jtSCgYIARAAGAQSNwF-L9IrHDSRUegUSNyrh3a4GOBeStjcCBQ5O3MGQPY07iHzqnQTtzGCOvPu_VJ1VE7WH36INno
+      - MAIL_FROM=rierafederico30.4857@gmail.com
+      # Opción alternativa: Gmail con App Password (más simple)
+      # - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      # Opción 3: Resend (alternativa)
+      # - MAIL_PROVIDER=resend
+      # - RESEND_API_KEY=re_c32RXBst_GvVmBoNhEjWtZLWm99BhZrgp
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aaron-network
+
+networks:
+  aaron-network:
+    driver: bridge

@@ -1,0 +1,5 @@
+// Logo AARON SERVICIOS en base64
+// Generado desde: frontend/web/public/images/brand/logo-BLANCO-v1.png
+export const LOGO_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAwEAAADKCAYAAAD92Ez/AAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAGXRFWHRTb2Z0d2FyZQB3d3cuaW5rc2NhcGUub3Jnm+48GgAAIABJREFUeJzsvXeYXVd57/8500fSjPqIVrO6JctWsWzJvRcMNhgwGDC9hVwIScj9kR/3JrnJvckT...';
+
+

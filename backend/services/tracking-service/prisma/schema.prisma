@@ -1,0 +1,71 @@
+// Tracking Service - Schema: tracking
+// Pings de ubicación, rutas, eventos
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  binaryTargets   = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  output          = "../../../node_modules/@aaron/prisma-client-tracking"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["tracking"]
+}
+
+model WorkSession {
+  id        String   @id @default(uuid())
+  crewId    String
+  orderId   String?
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  meta      Json?
+
+  crewPings CrewPing[]
+
+  @@schema("tracking")
+  @@map("work_sessions")
+  @@index([crewId])
+  @@index([orderId])
+  @@index([startedAt])
+}
+
+model CrewPing {
+  id         String      @id @default(uuid())
+  crewId     String
+  orderId    String?
+  sessionId  String?
+  lat        Float
+  lng        Float
+  source     String      @default("realtime")  // realtime|hourly_api
+  at         DateTime    @default(now())
+
+  session WorkSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@schema("tracking")
+  @@map("crew_pings")
+  @@index([crewId])
+  @@index([orderId])
+  @@index([sessionId])
+  @@index([at])
+  @@index([crewId, at])
+}
+
+model RouteSummary {
+  id         String   @id @default(uuid())
+  crewId     String
+  orderId    String?
+  from       DateTime
+  to         DateTime
+  distanceKm Float?
+  meta       Json?
+
+  @@schema("tracking")
+  @@map("route_summaries")
+  @@index([crewId])
+  @@index([orderId])
+  @@index([from])
+  @@index([to])
+  @@unique([crewId, orderId, from])
+}

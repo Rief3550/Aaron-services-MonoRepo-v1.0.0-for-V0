@@ -1,0 +1,1 @@
+{"version":3,"file":"verify-email.template.d.ts","sourceRoot":"","sources":["verify-email.template.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,MAAM,WAAW,eAAe;IAC9B,KAAK,EAAE,MAAM,CAAC;IACd,eAAe,EAAE,MAAM,CAAC;IACxB,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB;AAED,wBAAgB,2BAA2B,CAAC,IAAI,EAAE,eAAe,GAAG;IAAE,IAAI,EAAE,MAAM,CAAC;IAAC,IAAI,EAAE,MAAM,CAAA;CAAE,CA4CjG"}

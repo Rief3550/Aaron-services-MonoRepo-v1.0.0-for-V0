@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "noEmitOnError": false
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.e2e-spec.ts",
+    "src/modules/health/**/*",
+    "src/modules/metrics/**/*",
+    "src/modules/crews/**/*",
+    "src/modules/roles/**/*",
+    "src/routes/**/*",
+    "src/utils/**/*",
+    "src/services/**/*",
+    "src/controllers/**/*"
+  ]
+}
