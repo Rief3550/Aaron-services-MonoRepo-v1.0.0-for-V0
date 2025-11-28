@@ -1,7 +1,12 @@
 # Dependencies
+# Ignorar node_modules en cualquier nivel del proyecto
+**/node_modules/
 node_modules/
 .pnp
 .pnp.js
+
+# Ignorar también los node_modules dentro de .pnpm (pnpm store)
+**/.pnpm/**/node_modules/
 
 # Testing
 coverage/

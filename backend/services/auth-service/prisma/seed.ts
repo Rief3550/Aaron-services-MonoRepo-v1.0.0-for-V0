@@ -2,6 +2,7 @@
  * Seed minimal roles: ADMIN, OPERATOR, CREW, CUSTOMER
  * And create test admin user
  */
+/* eslint-disable */
 /* eslint-disable no-console */
 import { PrismaClient } from '@aaron/prisma-client-auth';
 import * as bcrypt from 'bcrypt';
