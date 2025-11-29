@@ -5,7 +5,7 @@
 
 'use client';
 
-import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, MapMouseEvent } from '@vis.gl/react-google-maps';
 import { MapMarker, MarkerType } from '@/lib/types/map.types';
 
 interface GoogleMapProps {
@@ -18,6 +18,7 @@ interface GoogleMapProps {
   selectedMarker?: MapMarker | null;
   popupPosition?: { lat: number; lng: number } | null;
   onClosePopup?: () => void;
+  onMapClick?: (e: MapMouseEvent) => void;
 }
 
 export function GoogleMap({
@@ -30,10 +31,17 @@ export function GoogleMap({
   selectedMarker,
   popupPosition,
   onClosePopup,
+  onMapClick,
 }: GoogleMapProps) {
   // API Key y Map ID desde variables de entorno o fallback directo
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCxDpBudd3WuLMHmNpUbFeDdExXZuKOaJY';
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '7bcc2d14e02b6d88e92b9966';
+
+  // Debug: Verificar que el Map ID se está cargando correctamente
+  if (typeof window !== 'undefined') {
+    console.log('🗺️ Google Maps - Map ID:', mapId);
+    console.log('🗺️ Google Maps - API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO CONFIGURADA');
+  }
 
   if (!apiKey) {
     return (
@@ -268,6 +276,10 @@ export function GoogleMap({
           streetViewControl={true}
           rotateControl={false}
           fullscreenControl={true}
+          onClick={onMapClick}
+          onLoad={() => {
+            console.log('✅ Mapa cargado con Map ID:', mapId);
+          }}
         >
           {/* Renderizar marcadores personalizados */}
           {markers.map((marker) => (

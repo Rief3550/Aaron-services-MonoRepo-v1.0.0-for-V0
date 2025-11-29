@@ -247,7 +247,7 @@ export default function CrewsPage() {
 
             {/* Modal de Detalle de Cuadrilla */}
             {showDetailModal && selectedCrew && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
                     <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">

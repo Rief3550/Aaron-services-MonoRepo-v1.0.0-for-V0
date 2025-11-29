@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { KPIcards } from '@/components/operator/KPIcards';
 import { OrdersStatusChart } from '@/components/operator/OrdersStatusChart';
-import { BudgetCardGrid, type OrderState } from '@/components/ui/budget-card';
+import { BudgetCard, type OrderState } from '@/components/ui/budget-card';
 import { OrderStateModal } from '@/components/operator/OrderStateModal';
 import { DashboardMap } from '@/components/dashboard/DashboardMap';
 import { opsApi } from '@/lib/api/services';
@@ -161,29 +161,59 @@ export default function DashboardPage() {
         <KPIcards />
       </section>
 
-      {/* Budget Cards - Estados de Órdenes */}
-      <section>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Estado de Órdenes</h3>
-        <BudgetCardGrid
-          budgets={[
-            { state: 'PENDIENTE', count: orderStats.PENDIENTE, onClick: () => router.push('/ordenes?state=PENDIENTE') },
-            { state: 'ASIGNADA', count: orderStats.ASIGNADA, onClick: () => router.push('/ordenes?state=ASIGNADA') },
-            { state: 'EN_PROGRESO', count: orderStats.EN_PROGRESO, onClick: () => router.push('/ordenes?state=EN_PROGRESO') },
-            { state: 'FINALIZADA', count: orderStats.FINALIZADA, onClick: () => router.push('/ordenes?state=FINALIZADA') },
-            { state: 'CANCELADA', count: orderStats.CANCELADA, onClick: () => router.push('/ordenes?state=CANCELADA') },
-          ]}
-          context="orders"
-        />
-      </section>
+      {/* Layout Grid: Estados (Matriz) y Gráfico */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Columna Izquierda: Matriz de Estados */}
+        <section className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Estado de Órdenes</h3>
+          <div className="grid grid-cols-6 gap-3">
+            {/* Fila 1: 2 elementos */}
+            <BudgetCard 
+              state="PENDIENTE" 
+              count={orderStats.PENDIENTE} 
+              onClick={() => router.push('/ordenes?state=PENDIENTE')} 
+              className="col-span-3 hover:shadow-md transition-shadow !p-3"
+            />
+            <BudgetCard 
+              state="ASIGNADA" 
+              count={orderStats.ASIGNADA} 
+              onClick={() => router.push('/ordenes?state=ASIGNADA')} 
+              className="col-span-3 hover:shadow-md transition-shadow !p-3"
+            />
+            {/* Fila 2: 3 elementos */}
+            <BudgetCard 
+              state="EN_PROGRESO" 
+              count={orderStats.EN_PROGRESO} 
+              onClick={() => router.push('/ordenes?state=EN_PROGRESO')} 
+              className="col-span-2 hover:shadow-md transition-shadow !p-3"
+            />
+            <BudgetCard 
+              state="FINALIZADA" 
+              count={orderStats.FINALIZADA} 
+              onClick={() => router.push('/ordenes?state=FINALIZADA')} 
+              className="col-span-2 hover:shadow-md transition-shadow !p-3"
+            />
+            <BudgetCard 
+              state="CANCELADA" 
+              count={orderStats.CANCELADA} 
+              onClick={() => router.push('/ordenes?state=CANCELADA')} 
+              className="col-span-2 hover:shadow-md transition-shadow !p-3"
+            />
+          </div>
+        </section>
+
+        {/* Columna Derecha: Gráfico */}
+        <section className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center">
+          {/* Título eliminado según imagen */}
+          <div className="w-full h-[280px]"> {/* Altura ajustada */}
+            <OrdersStatusChart />
+          </div>
+        </section>
+      </div>
 
       {/* Mapa de Órdenes y Cuadrillas */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <DashboardMap orders={mapOrders} crews={mapCrews} />
-      </section>
-
-      {/* Gráfico de Series Temporales */}
-      <section>
-        <OrdersStatusChart />
       </section>
 
       {/* Recent Orders Table */}

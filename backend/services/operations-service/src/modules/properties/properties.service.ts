@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EstadoCliente, TipoPropiedad, TipoConstruccion, EstadoChecklistItem } from '@aaron/prisma-client-ops';
 
 import { prisma } from '../../config/database';
+import { ClientEmailService } from '../clients/email.service';
 
 import { CreatePropertyDto, PreApprovalDto, UpdatePropertyStatusDto, CompleteAuditDto, CaptureLocationDto } from './dto/create-property.dto';
 
@@ -10,11 +11,18 @@ const logger = new Logger('PropertiesService');
 
 @Injectable()
 export class PropertiesService {
+  constructor(private emailService: ClientEmailService) {}
   async create(dto: CreatePropertyDto) {
     try {
+      // Buscar si existe un cliente para este userId para vincularlo
+      const client = await prisma.client.findUnique({
+        where: { userId: dto.userId }
+      });
+
       const property = await prisma.customerProperty.create({
         data: {
           userId: dto.userId,
+          clientId: client?.id, // Vincular automáticamente al cliente
           address: dto.address,
           lat: dto.lat,
           lng: dto.lng,
@@ -378,6 +386,22 @@ export class PropertiesService {
                 },
               });
             }
+          }
+        }
+
+        // Enviar email de bienvenida al cliente
+        if (property.client) {
+          try {
+            const plan = dto.planId ? await prisma.plan.findUnique({ where: { id: dto.planId } }) : null;
+            await this.emailService.sendActivationEmail(
+              property.client.email,
+              property.client.nombreCompleto || 'Cliente',
+              plan?.name,
+            );
+            logger.info(`Welcome email sent to ${property.client.email}`);
+          } catch (emailError) {
+            logger.error('Failed to send welcome email', emailError);
+            // No fallar la auditoría si falla el email
           }
         }
 

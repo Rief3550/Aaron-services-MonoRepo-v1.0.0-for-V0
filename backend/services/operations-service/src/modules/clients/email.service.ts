@@ -52,7 +52,16 @@ export class ClientEmailService {
     planNombre?: string,
   ): Promise<void> {
     try {
-      const subject = '¡Bienvenido a AARON SERVICIOS!';
+      const subject = '¡Bienvenido a Aaron Services! Tu cuenta está activa';
+      
+      // Paleta de colores del manual
+      const colors = {
+        primary: '#F9782E',    // Naranja
+        secondary: '#294C75',  // Azul Oscuro
+        text: '#333333',
+        background: '#FFFAFA',
+        gray: '#BABABA'
+      };
       
       const html = `
         <!DOCTYPE html>
@@ -60,31 +69,60 @@ export class ClientEmailService {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bienvenido a AARON SERVICIOS</title>
+          <title>¡Bienvenido a Aaron Services!</title>
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body { font-family: 'Montserrat', Arial, sans-serif; line-height: 1.6; color: ${colors.text}; margin: 0; padding: 0; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background-color: ${colors.secondary}; padding: 30px 20px; text-align: center; }
+            .logo { max-width: 200px; height: auto; }
+            .content { padding: 40px 30px; background-color: ${colors.background}; }
+            .h1 { color: ${colors.secondary}; margin-top: 0; font-size: 24px; font-weight: 700; }
+            .highlight-box { background-color: #fff; border-left: 4px solid ${colors.primary}; padding: 15px 20px; margin: 20px 0; border-radius: 4px; }
+            .btn { display: inline-block; background-color: ${colors.primary}; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 50px; font-weight: 600; margin: 20px 0; box-shadow: 0 2px 4px rgba(249, 120, 46, 0.3); }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: ${colors.gray}; border-top: 1px solid #e5e7eb; }
+            ul { padding-left: 20px; }
+            li { margin-bottom: 8px; }
+          </style>
         </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #1e40af; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            ${LOGO_BASE64 ? `<img src="data:image/png;base64,${LOGO_BASE64}" alt="AARON SERVICIOS" style="max-width: 200px; height: auto; margin: 0 auto; display: block;" />` : '<h1 style="margin: 0; color: white;">AARON SERVICIOS</h1>'}
-          </div>
-          
-          <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">
-            <h2 style="color: #1e40af; margin-top: 0;">¡Bienvenido, ${nombreCompleto || 'Cliente'}!</h2>
+        <body>
+          <div class="container">
+            <div class="header">
+              ${LOGO_BASE64 ? `<img src="data:image/png;base64,${LOGO_BASE64}" alt="Aaron Services" class="logo">` : '<div style="color: white; font-size: 24px; font-weight: 700;">AARON SERVICES</div>'}
+            </div>
             
-            <p>Nos complace informarte que tu solicitud ha sido <strong>aprobada</strong> y tu cuenta ha sido <strong>activada</strong>.</p>
+            <div class="content">
+              <h1 class="h1">¡Bienvenido, ${nombreCompleto || 'Cliente'}!</h1>
+              
+              <p>Nos complace informarte que tu solicitud ha sido <strong>aprobada</strong> y tu cuenta ha sido <strong>activada exitosamente</strong>.</p>
+              
+              ${planNombre ? `
+              <div class="highlight-box">
+                <p style="margin: 0;"><strong>Tu plan activo:</strong> ${planNombre}</p>
+              </div>
+              ` : ''}
+              
+              <p><strong>¿Qué puedes hacer ahora?</strong></p>
+              <ul>
+                <li>📱 <strong>Descargar la app móvil</strong> y comenzar a solicitar servicios</li>
+                <li>🏠 Gestionar tus propiedades y suscripciones</li>
+                <li>🔧 Solicitar servicios de mantenimiento y reparación</li>
+                <li>📊 Acceder a todas las funcionalidades de tu plan</li>
+              </ul>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="#" class="btn">Descargar App Móvil</a>
+              </div>
+              
+              <p style="font-size: 14px; color: #6b7280;">
+                Si tienes alguna pregunta o necesitas asistencia, nuestro equipo está listo para ayudarte.
+              </p>
+            </div>
             
-            ${planNombre ? `<p>Tu plan activo es: <strong>${planNombre}</strong></p>` : ''}
-            
-            <p>Ahora puedes:</p>
-            <ul>
-              <li>Solicitar servicios de mantenimiento y reparación</li>
-              <li>Acceder a todas las funcionalidades de tu plan</li>
-              <li>Gestionar tus propiedades y suscripciones</li>
-            </ul>
-            
-            <p>Si tienes alguna pregunta o necesitas asistencia, no dudes en contactarnos.</p>
-            
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
-              <p>Saludos cordiales,<br><strong>Equipo de AARON SERVICIOS</strong></p>
+            <div class="footer">
+              <p><strong>Equipo de Aaron Services</strong></p>
+              <p>&copy; ${new Date().getFullYear()} Aaron Services. Todos los derechos reservados.</p>
+              <p style="margin-top: 10px;">Este es un correo automático, por favor no respondas a este mensaje.</p>
             </div>
           </div>
         </body>

@@ -32,7 +32,7 @@ services:
       - .env.development
     environment:
       - REDIS_HOST=redis
-      - DATABASE_URL=postgresql://root:Ollieconverse123@host.docker.internal:5432/postgres
+      - DATABASE_URL=postgresql://fede:Ollieconverese123@host.docker.internal:5432/postgres
       - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCxDpBudd3WuLMHmNpUbFeDdExXZuKOaJY
       - NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=7bcc2d14e02b6d88e92b9966
       # Apuntar al API Gateway en puerto 3000

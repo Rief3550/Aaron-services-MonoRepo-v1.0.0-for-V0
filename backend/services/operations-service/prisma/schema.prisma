@@ -11,7 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["operations"]
+  schemas  = ["operations", "auth"]
 }
 
 // =========================
@@ -838,4 +838,39 @@ model AuditForm {
   @@index([clientId])
   @@index([completado])
   @@index([fechaTramite])
+}
+
+// =========================
+// Auth Schema Integration (Para creación de usuarios manuales)
+// =========================
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String?
+  fullName        String?
+  googleId        String?  @unique
+  roles           Role[]   @relation("UserRoles")
+  isEmailVerified Boolean  @default(false)
+  active          Boolean  @default(true)
+  phone           String?
+  zone            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relaciones de Auth (omitidas sesiones y audits si no se usan aquí, pero roles es clave)
+  
+  @@map("users")
+  @@schema("auth")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique // ADMIN, OPERATOR, CREW, CUSTOMER
+  description String?
+  users     User[]   @relation("UserRoles")
+  createdAt DateTime @default(now())
+
+  @@map("roles")
+  @@schema("auth")
 }

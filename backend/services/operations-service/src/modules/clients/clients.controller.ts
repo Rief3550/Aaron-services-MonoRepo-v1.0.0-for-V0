@@ -12,6 +12,7 @@ import {
 import { ClientsService } from './clients.service';
 import {
   CreateClientInternalDto,
+  CreateClientManualDto,
   UpdateClientDto,
   UpdateClientStatusDto,
   ClientFiltersDto,
@@ -52,6 +53,21 @@ export class ClientsController {
         error: error instanceof Error ? error.message : 'Failed to create client' 
       };
     }
+  }
+
+  /**
+   * Admin/Operator: Crea cliente manualmente desde el panel web
+   * (sin verificación de email, para clientes especiales)
+   * POST /ops/clients/manual
+   */
+  @Post('manual')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'OPERATOR')
+  async createManual(
+    @Body() dto: CreateClientManualDto,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.clientsService.createManual(dto, user.userId);
   }
 
   /**

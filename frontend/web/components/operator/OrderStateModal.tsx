@@ -133,7 +133,7 @@ export const OrderStateModal: React.FC<OrderStateModalProps> = ({ isOpen, onClos
   ].filter(s => s.value !== order.state); // No mostrar el estado actual
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
         
         {/* Header */}

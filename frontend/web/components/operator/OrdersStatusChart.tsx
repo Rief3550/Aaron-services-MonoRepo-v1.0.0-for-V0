@@ -201,7 +201,7 @@ export const OrdersStatusChart: React.FC = () => {
     const chartOptions: ChartOptions<'line'> = {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 40, bottom: 40, left: 0, right: 10 } }, // Más padding vertical para expandir el área del gráfico
+        layout: { padding: { top: 10, bottom: 10, left: 0, right: 10 } },
         plugins: {
             legend: {
                 display: true,
@@ -366,21 +366,13 @@ export const OrdersStatusChart: React.FC = () => {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm flex flex-col h-full w-full">
-            <div className="flex flex-col flex-grow">
-                <div className="bg-white px-6 py-4 rounded-t-xl">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-base font-semibold text-gray-900">Órdenes por Estado</h2>
-                        {renderTimeFilterButtons()}
-                    </div>
-                </div>
-                <div className="relative flex-grow w-full" style={{ minHeight: '500px' }}>
-                    <div className="p-4 h-full">
-                        <div className="w-full" style={{ height: '600px' }}>
-                            {renderChartContent()}
-                        </div>
-                    </div>
-                </div>
+        <div className="flex flex-col h-full w-full">
+            <div className="flex justify-between items-center mb-2 px-2">
+                <h2 className="text-base font-semibold text-gray-900">Órdenes por Estado</h2>
+                {renderTimeFilterButtons()}
+            </div>
+            <div className="relative flex-grow w-full min-h-0">
+                {renderChartContent()}
             </div>
         </div>
     );

@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { prisma } from '../../config/database';
 import { EstadoCliente } from '@aaron/prisma-client-ops';
+import * as bcrypt from 'bcryptjs';
 import { 
   CreateClientDto, 
-  CreateClientInternalDto, 
+  CreateClientInternalDto,
+  CreateClientManualDto,
   UpdateClientDto, 
   UpdateClientStatusDto,
   ClientFiltersDto 
@@ -48,6 +50,143 @@ export class ClientsService {
     });
 
     return client;
+  }
+
+  /**
+   * Crea un cliente manualmente desde el panel web (sin verificación de email)
+   * Usado por ADMIN/OPERATOR para clientes especiales o con dificultades
+   * Crea: Cliente + Propiedad + Suscripción (todo activado directamente)
+   */
+  async createManual(dto: CreateClientManualDto, createdByUserId: string) {
+    // Verificar si ya existe un cliente con este email
+    const existingByEmail = await prisma.client.findFirst({
+      where: { email: dto.email },
+    });
+
+    if (existingByEmail) {
+      throw new ConflictException(`Ya existe un cliente con el email ${dto.email}`);
+    }
+
+    // Verificar que el plan existe
+    const plan = await prisma.plan.findUnique({
+      where: { id: dto.planId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException(`Plan con ID ${dto.planId} no encontrado`);
+    }
+
+    // Crear todo en una transacción
+    const result = await prisma.$transaction(async (tx) => {
+      // 0. Crear Usuario en Auth
+      // Buscar rol CUSTOMER
+      // Nota: 'role' y 'user' existen en el cliente de prisma gracias a la integración de schemas
+      const role = await (tx as any).role.findUnique({ where: { name: 'CUSTOMER' } });
+      if (!role) {
+         throw new ConflictException('Rol CUSTOMER no encontrado en el sistema. Contacte a soporte.');
+      }
+
+      // Hashear password
+      const password = dto.password || 'Aaron123!';
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Crear usuario
+      const user = await (tx as any).user.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          fullName: dto.fullName,
+          isEmailVerified: true,
+          active: true,
+          phone: dto.telefono,
+          roles: {
+             connect: { id: role.id }
+          }
+        }
+      });
+
+      const userId = user.id;
+      
+      // 1. Crear el cliente directamente ACTIVO
+      const client = await tx.client.create({
+        data: {
+          userId: userId,
+          email: dto.email,
+          nombreCompleto: dto.fullName,
+          telefono: dto.telefono,
+          documento: dto.documento,
+          direccionFacturacion: dto.direccionFacturacion,
+          lat: dto.lat,
+          lng: dto.lng,
+          ciudad: dto.ciudad,
+          provincia: dto.provincia,
+          estado: EstadoCliente.ACTIVO, // Directamente ACTIVO
+          datosAdicionales: dto.observaciones ? JSON.stringify({
+            observaciones: dto.observaciones,
+            createdBy: createdByUserId,
+            createdManually: true,
+            createdAt: new Date().toISOString(),
+          }) : null,
+        },
+      });
+
+      // 2. Crear la propiedad directamente ACTIVE
+      const property = await tx.customerProperty.create({
+        data: {
+          clientId: client.id,
+          userId: userId,
+          address: dto.address,
+          lat: dto.lat,
+          lng: dto.lng,
+          tipoPropiedad: dto.tipoPropiedad as any,
+          tipoConstruccion: dto.tipoConstruccion as any,
+          ambientes: dto.ambientes,
+          banos: dto.banos,
+          superficieCubiertaM2: dto.superficieCubiertaM2,
+          superficieDescubiertaM2: dto.superficieDescubiertaM2,
+          barrio: dto.barrio,
+          ciudad: dto.ciudad,
+          provincia: dto.provincia,
+          status: 'ACTIVE', // Directamente ACTIVE
+          summary: dto.observacionesPropiedad || `Propiedad creada manualmente para ${dto.fullName}`,
+          notes: `Creada manualmente por operador. Sin auditoría previa.`,
+        },
+      });
+
+      // 3. Crear la suscripción directamente ACTIVE
+      const subscription = await tx.subscription.create({
+        data: {
+          clientId: client.id,
+          userId: userId,
+          propertyId: property.id,
+          planId: dto.planId,
+          status: 'ACTIVE',
+          montoMensual: plan.price,
+          moneda: plan.currency,
+          planSnapshot: {
+            name: plan.name,
+            price: plan.price,
+            currency: plan.currency,
+          },
+        },
+      });
+
+      return { client, property, subscription };
+    });
+
+    // 4. Enviar email de bienvenida
+    try {
+      await this.emailService.sendActivationEmail(
+        result.client.email,
+        result.client.nombreCompleto || 'Cliente',
+        plan.name,
+      );
+    } catch (emailError) {
+      // No fallar si el email falla
+      console.error('Error sending welcome email:', emailError);
+    }
+
+    return result;
   }
 
   /**

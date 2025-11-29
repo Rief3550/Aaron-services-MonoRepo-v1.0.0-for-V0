@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { SolicitudDetailModal } from '@/components/solicitudes/SolicitudDetailModal';
 import { LocationMapModal } from '@/components/solicitudes/LocationMapModal';
+import { CreateManualClientModal } from '@/components/solicitudes/CreateManualClientModal';
 import { fetchSolicitudes, type Solicitud } from '@/lib/solicitudes/api';
 import { updateClientStatus } from '@/lib/clients/api';
 import { EstadoCliente } from '@/lib/types/client';
@@ -14,6 +15,7 @@ export default function SolicitudesPage() {
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [mapSolicitud, setMapSolicitud] = useState<Solicitud | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string>(''); // '' = todos, 'PENDIENTE' = solo pendientes, etc.
 
@@ -203,7 +205,10 @@ export default function SolicitudesPage() {
             Gestión de registros de usuarios y solicitudes de servicio iniciales (SignUp)
           </p>
         </div>
-        <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm">
+        <button 
+          onClick={() => setIsCreateModalOpen(true)}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm"
+        >
           Nueva Solicitud
         </button>
       </div>
@@ -271,6 +276,18 @@ export default function SolicitudesPage() {
         lng={mapSolicitud?.lng}
         address={mapSolicitud?.address}
         clientName={mapSolicitud?.citizen}
+      />
+
+      <CreateManualClientModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          // Recargar lista
+          setEstadoFilter(''); // Resetear filtro para ver el nuevo si es necesario, o mantenerlo
+          // Forzar recarga cambiando filtro o llamando a loadData si pudiera sacarlo del useEffect
+          // Truco simple: togglear filtro o setear loading
+          window.location.reload(); // Más seguro para asegurar que todo se refresque
+        }}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { BudgetCardGrid, type OrderState } from '@/components/ui/budget-card';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { OrderStateModal } from '@/components/operator/OrderStateModal';
+import { CreateWorkOrderModal } from '@/components/operator/CreateWorkOrderModal';
 import Link from 'next/link';
 
 interface WorkOrder {
@@ -31,9 +32,10 @@ export default function OrdenesPage() {
   const [filterTo, setFilterTo] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState<string>('');
   
-  // Estado para modal
+  // Estado para modales
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Estadísticas por estado
   const [orderStats, setOrderStats] = useState<Record<OrderState, number>>({
@@ -202,6 +204,12 @@ export default function OrdenesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Órdenes de Trabajo</h1>
           <p className="mt-1 text-sm text-gray-600">Gestión y seguimiento de servicios</p>
         </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm"
+        >
+          Nueva Orden
+        </button>
       </div>
 
       {/* Budget Cards - Estados de Órdenes */}
@@ -314,6 +322,15 @@ export default function OrdenesPage() {
           onUpdate={handleModalUpdate}
         />
       )}
+
+      {/* Modal de Crear Orden */}
+      <CreateWorkOrderModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          loadOrders();
+        }}
+      />
     </div>
   );
 }

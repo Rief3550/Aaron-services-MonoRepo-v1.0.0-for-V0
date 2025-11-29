@@ -6,13 +6,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 
 export interface LoginFormData {
   email: string;
   password: string;
-  rememberMe?: boolean;
 }
 
 export interface LoginFormProps {
@@ -24,7 +22,6 @@ export interface LoginFormProps {
 export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -53,9 +50,8 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
       await onSubmit({
         email,
         password,
-        rememberMe,
       });
-    } catch (err) {
+    } catch {
       // El error será manejado por el componente padre
     }
   };
@@ -64,26 +60,26 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
 
   return (
     <div className="flex h-screen">
-      {/* Panel Izquierdo - Formulario (Más fino) */}
-      <div className="flex w-full flex-col items-center justify-center bg-white px-4 py-12 sm:w-2/5 sm:px-6 lg:px-8">
-        <div className="w-full max-w-xs space-y-8">
+      {/* Panel Izquierdo - Formulario */}
+      <div className="flex w-full flex-col items-center justify-center pb-32 bg-white px-4 py-12 lg:w-[35%] sm:px-6 lg:px-8">
+        <div className="w-full max-w-sm space-y-6">
           {/* Logo/Branding */}
-          <div className="text-center">
-            <div className="mx-auto flex h-[400px] w-[400px] items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="mx-auto flex h-80 w-full items-end justify-center overflow-hidden pb-4">
               <Image
                 src="/images/brand/logo_naranja.png"
                 alt="Aaron Services Logo"
-                width={400}
-                height={400}
-                className="object-contain"
+                width={800}
+                height={600}
+                className="object-contain scale-125"
                 priority
               />
             </div>
-            <h1 className="mt-2 text-4xl font-light text-gray-900">Bienvenido</h1>
+            <h1 className="text-2xl font-light text-gray-800 tracking-tight mb-12 -mt-8">Bienvenido de nuevo</h1>
           </div>
 
           {/* Form */}
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Error Message */}
             {displayError && (
               <div className="rounded-md bg-red-50 p-4">
@@ -105,8 +101,8 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="relative block w-full rounded-md border-0 px-4 py-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                  placeholder="Email"
+                  className="relative block w-full rounded-lg border-0 bg-yellow-50 px-4 py-4 pr-10 text-gray-900 ring-1 ring-inset ring-yellow-100 placeholder:text-gray-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-orange-500 text-base sm:leading-6 shadow-sm"
+                  placeholder="admin@aaron.com"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                   <svg
@@ -135,7 +131,7 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="relative block w-full rounded-md border-0 px-4 py-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="relative block w-full rounded-lg border-0 bg-yellow-50 px-4 py-4 pr-10 text-gray-900 ring-1 ring-inset ring-yellow-100 placeholder:text-gray-500 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-orange-500 text-base sm:leading-6 shadow-sm"
                   placeholder="Contraseña"
                 />
                 <button
@@ -166,74 +162,41 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
-
             {/* Submit Button */}
-            <div>
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative flex w-full justify-center rounded-lg bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="group relative flex w-full justify-center rounded-lg bg-[#F9782E] px-4 py-3 text-base font-bold text-white hover:bg-[#e06520] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9782E] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
-                {isLoading ? 'Iniciando sesión...' : 'Login'}
+                {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
               </button>
             </div>
           </form>
         </div>
       </div>
 
-      {/* Panel Derecho - Imagen lateral (Más espacio, sin overlay azul) */}
-      <div className="hidden sm:flex sm:w-3/5 relative overflow-hidden">
-        {/* Imagen de fondo con gradiente sutil aplicado directamente */}
-        <div className="absolute inset-0">
+      {/* Panel Derecho - Imagen lateral con border radius */}
+      <div className="hidden lg:flex lg:w-[65%] items-center justify-center p-6 lg:p-10 bg-white">
+        <div className="relative w-full h-full rounded-[40px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
           <Image
             src="/images/auth/login-side.jpg"
             alt="Aaron Services"
             fill
             className="object-cover"
             priority
-            style={{
-              opacity: 0.85,
-            }}
           />
-          {/* Gradiente sutil como manchas sobre la imagen (sin overlay azul) */}
-          <div 
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.05) 50%, rgba(30, 64, 175, 0.08) 100%)',
-            }}
-          />
-        </div>
+          {/* Overlay para mejorar contraste de texto si es necesario */}
+          <div className="absolute inset-0 bg-black/10" />
 
-        {/* Copyright */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 p-6">
-          <div className="rounded-lg bg-black/30 backdrop-blur-md border border-white/10 p-4 text-white text-xs shadow-lg">
-            <p className="font-medium">© 2025 Aaron Services. All rights reserved.</p>
-            <p className="mt-1 text-white/70">
-              Unauthorized use or reproduction of any content or materials from this prohibited.
-              For more information, visit our Terms of Service and Privacy Policy.
-            </p>
+          {/* Copyright */}
+          <div className="absolute bottom-0 left-0 right-0 z-10 p-6 flex justify-center">
+            <div className="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-2 text-[10px] text-white/60 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full border border-white/5">
+              <p className="whitespace-nowrap font-medium">© 2025 Aaron Services. All rights reserved.</p>
+              <p className="text-center md:text-right max-w-lg leading-tight">
+                Unauthorized use or reproduction of any content or materials from this prohibited. For more information, visit our Terms of Service and Privacy Policy.
+              </p>
+            </div>
           </div>
         </div>
       </div>
