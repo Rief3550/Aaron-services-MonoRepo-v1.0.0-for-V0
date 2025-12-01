@@ -11,6 +11,12 @@ const logger = new Logger('SubscriptionService');
 
 const DAYS_IN_MONTH = 30;
 const GRACE_DAYS = 3;
+const DEFAULT_PAUSE_DAYS = 15;
+
+interface CancelRequestOptions {
+  reason: string; // obligatorio
+  immediate?: boolean;
+}
 
 @Injectable()
 export class SubscriptionsService {
@@ -154,6 +160,67 @@ export class SubscriptionsService {
     }
   }
 
+  /**
+   * Cancelación pedida por el cliente (CUSTOMER)
+   * - immediate=true: status CANCELED ahora mismo
+   * - immediate=false: marcará cancelAtEnd (aquí usamos canceledAt future? simplificamos: dejamos ACTIVE y seteamos canceledAt y status CANCELED al final de periodo)
+   */
+  async requestCancel(userId: string, opts: CancelRequestOptions) {
+    try {
+      const sub = await prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: { in: ['ACTIVE', 'GRACE', 'PAST_DUE'] },
+        },
+        include: {
+          plan: true,
+          property: true,
+        },
+      });
+
+      if (!sub) {
+        return Result.error(new Error('No active subscription found'));
+      }
+
+      // Si immediate: cancelar ya
+      if (opts.immediate) {
+        const updated = await prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            status: 'CANCELED',
+            canceledAt: new Date(),
+            cancelReason: opts.reason || 'user_cancel',
+          },
+          include: {
+            plan: true,
+            property: true,
+          },
+        });
+        return Result.ok(updated);
+      }
+
+      // No immediate: programar cancelación al fin del período actual
+      const updated = await prisma.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: 'ACTIVE', // se mantiene activa hasta fin de periodo
+          canceledAt: sub.currentPeriodEnd ?? sub.nextChargeAt ?? null,
+          cancelReason: opts.reason || 'user_cancel_end_period',
+          // Mantener nextChargeAt como recordatorio; un job diario puede marcar CANCELED al llegar currentPeriodEnd
+        },
+        include: {
+          plan: true,
+          property: true,
+        },
+      });
+
+      return Result.ok(updated);
+    } catch (error) {
+      logger.error('Request cancel subscription error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to request cancellation'));
+    }
+  }
+
   async charge(id: string) {
     try {
       const subscription = await prisma.subscription.findUnique({ where: { id } });
@@ -183,6 +250,39 @@ export class SubscriptionsService {
     } catch (error) {
       logger.error('Charge subscription error', error);
       return Result.error(error instanceof Error ? error : new Error('Failed to charge subscription'));
+    }
+  }
+
+  /**
+   * Pausar suscripción por DEFAULT_PAUSE_DAYS
+   */
+  async pause(id: string, days: number = DEFAULT_PAUSE_DAYS) {
+    try {
+      const sub = await prisma.subscription.findUnique({ where: { id } });
+      if (!sub) {
+        return Result.error(new Error('Subscription not found'));
+      }
+
+      const pausedUntil = new Date();
+      pausedUntil.setDate(pausedUntil.getDate() + days);
+
+      const updated = await prisma.subscription.update({
+        where: { id },
+        data: {
+          status: 'PAUSED' as any,
+          suspendedAt: new Date(),
+          nextChargeAt: pausedUntil,
+        },
+        include: {
+          plan: true,
+          property: true,
+        },
+      });
+
+      return Result.ok(updated);
+    } catch (error) {
+      logger.error('Pause subscription error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to pause subscription'));
     }
   }
 
@@ -475,8 +575,35 @@ export class SubscriptionsService {
         });
       }
 
+      const payments = await prisma.payment.findMany({
+        where: { subscriptionId: subscription.id, status: 'POSTED' },
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+        take: 1,
+      });
+
+      const now = new Date();
+      const endDate = subscription.currentPeriodEnd || subscription.nextChargeAt;
+      const canceledAt = subscription.canceledAt;
+      const targetEnd = canceledAt || endDate;
+      const msRemaining = targetEnd ? targetEnd.getTime() - now.getTime() : 0;
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+
+      const pastDue =
+        subscription.status === 'PAST_DUE' ||
+        (subscription.status === 'GRACE' && subscription.currentPeriodEnd && subscription.currentPeriodEnd < now);
+
       return Result.ok({
-        subscription,
+        subscription: {
+          ...subscription,
+          pastDue,
+          daysRemaining,
+          nextChargeAt: subscription.nextChargeAt,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          graceUntil: subscription.graceUntil,
+          canceledAt: subscription.canceledAt,
+          cancelReason: subscription.cancelReason,
+          lastPayment: payments?.[0] || null,
+        },
         clientStatus: client.estado,
       });
     } catch (error) {

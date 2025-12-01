@@ -69,6 +69,28 @@ export class UpdateWorkOrderStateDto {
   meta?: any;
 }
 
+export class WorkOrderFeedbackDto {
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @IsOptional()
+  @IsString()
+  comment?: string;
+}
+
+export class WorkOrderIssueDto {
+  @IsString()
+  category: string; // facturacion|servicio|app|otro
+
+  @IsString()
+  description: string;
+
+  @IsOptional()
+  attachments?: any[];
+}
+
 /**
  * DTO para actualizar trabajo completado (operador/cuadrilla)
  */

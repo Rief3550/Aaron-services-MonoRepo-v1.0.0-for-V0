@@ -125,9 +125,8 @@ export default function AdminPlansPage() {
         </div>
       ) : (
         <PlanList
-          key={refreshKey}
+          refreshKey={refreshKey}
           onEdit={handleEdit}
-          onRefresh={() => setRefreshKey((prev) => prev + 1)}
         />
       )}
     </div>

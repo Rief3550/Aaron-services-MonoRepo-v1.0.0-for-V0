@@ -186,12 +186,9 @@ export default function AdminSubscriptionsPage() {
                     />
 
                     <SubscriptionList
-                        key={refreshKey}
                         onEdit={handleEdit}
-                        onRefresh={() => {
-                            setRefreshKey((prev) => prev + 1);
-                            loadStats();
-                        }}
+                        refreshKey={refreshKey}
+                        onStatsRefresh={loadStats}
                         filters={statusFilter ? { status: statusFilter } : undefined}
                     />
                 </>

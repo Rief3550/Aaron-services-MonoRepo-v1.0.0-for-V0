@@ -176,6 +176,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private handleOrderEnCaminoEvent(event: WorkOrderEnCaminoEvent) {
     this.logger.log(`Received ORDER_EN_CAMINO event: orderId=${event.orderId}, crewId=${event.crewId}`);
 
+    if (!event.targetLocation?.lat || !event.targetLocation?.lng) {
+      this.logger.warn('ORDER_EN_CAMINO without targetLocation lat/lng. Destination should be property coords.');
+    }
+
     // Suggest/prepare rooms
     const orderRoom = `order:${event.orderId}`;
     this.wsGateway.suggestRoom(orderRoom);

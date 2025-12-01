@@ -56,6 +56,25 @@ export class SubscriptionsController {
     return this.subscriptionsService.requestUpgrade(user.userId, planId, reason);
   }
 
+  /**
+   * Cliente solicita cancelación de su suscripción
+   * POST /ops/subscriptions/me/cancel
+   * - Puede marcar cancelación inmediata o al fin de período
+   */
+  @Post('me/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Roles('CUSTOMER')
+  async requestCancel(
+    @CurrentUser() user: { userId: string },
+    @Body('reason') reason: string,
+    @Body('immediate') immediate?: boolean,
+  ) {
+    return this.subscriptionsService.requestCancel(user.userId, {
+      reason,
+      immediate: immediate ?? false,
+    });
+  }
+
   // =========================================
   // ENDPOINTS PARA ADMIN/OPERATOR
   // =========================================
@@ -106,6 +125,13 @@ export class SubscriptionsController {
   @Roles('ADMIN')
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateSubscriptionStatusDto) {
     return this.subscriptionsService.updateStatus(id, dto);
+  }
+
+  @Patch(':id/pause')
+  @HttpCode(HttpStatus.OK)
+  @Roles('ADMIN')
+  async pause(@Param('id') id: string, @Body('days') days?: number) {
+    return this.subscriptionsService.pause(id, days);
   }
 
   /**

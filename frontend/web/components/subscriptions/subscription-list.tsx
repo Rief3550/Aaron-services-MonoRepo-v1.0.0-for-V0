@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
@@ -16,38 +16,37 @@ import {
   changeSubscriptionState,
   type Subscription,
 } from '@/lib/subscriptions/service';
-import { Loader } from '@/components/ui/loader';
 import Link from 'next/link';
 
 interface SubscriptionListProps {
   onEdit: (subscription: Subscription) => void;
-  onRefresh?: () => void;
   filters?: { userId?: string; status?: string };
+  refreshKey?: number;
+  onStatsRefresh?: () => void;
 }
 
-export function SubscriptionList({ onEdit, onRefresh, filters }: SubscriptionListProps) {
+export function SubscriptionList({ onEdit, filters, refreshKey, onStatsRefresh }: SubscriptionListProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSubscriptions = async () => {
+  const loadSubscriptions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await fetchSubscriptions(filters, { admin: true });
       setSubscriptions(data);
-      onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar suscripciones');
       console.error('Error loading subscriptions:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     loadSubscriptions();
-  }, [filters]);
+  }, [loadSubscriptions, refreshKey]);
 
   const handleCancel = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas cancelar esta suscripción?')) {
@@ -57,6 +56,7 @@ export function SubscriptionList({ onEdit, onRefresh, filters }: SubscriptionLis
     try {
       await cancelSubscription(id);
       await loadSubscriptions();
+      onStatsRefresh?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al cancelar suscripción');
     }
@@ -66,6 +66,7 @@ export function SubscriptionList({ onEdit, onRefresh, filters }: SubscriptionLis
     try {
       await changeSubscriptionState(subscription.id, newState);
       await loadSubscriptions();
+      onStatsRefresh?.();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al cambiar estado');
     }

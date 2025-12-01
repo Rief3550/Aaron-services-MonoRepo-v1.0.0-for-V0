@@ -9,6 +9,11 @@ import { CreatePaymentIntentDto, ManualPaymentInputDto, ProcessPaymentDto } from
 
 const logger = new Logger('PaymentsService');
 
+interface TicketInput {
+  amount?: number;
+  note?: string;
+}
+
 @Injectable()
 export class PaymentsService {
   private stripe?: Stripe;
@@ -19,6 +24,31 @@ export class PaymentsService {
       this.stripe = new Stripe(secret, {
         // use default API version from stripe package
       });
+    }
+  }
+
+  async list(params?: { subscriptionId?: string; userId?: string; status?: string }) {
+    try {
+      const where: any = {};
+      if (params?.subscriptionId) where.subscriptionId = params.subscriptionId;
+      if (params?.status) where.status = params.status;
+
+      // Si se pasa userId, filtramos por subs del user
+      if (params?.userId) {
+        where.subscription = {
+          userId: params.userId,
+        } as any;
+      }
+
+      const payments = await prisma.payment.findMany({
+        where,
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      return Result.ok(payments);
+    } catch (error) {
+      logger.error('List payments error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to list payments'));
     }
   }
 
@@ -174,5 +204,96 @@ export class PaymentsService {
     if (s === 'canceled') return 'VOID';
     if (s === 'failed') return 'FAILED';
     return 'PENDING';
+  }
+
+  /**
+   * Pagos del cliente (por userId)
+   */
+  async findByUserId(userId: string) {
+    try {
+      const subscription = await prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: { not: 'CANCELED' },
+        },
+        include: {
+          plan: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!subscription) {
+        return Result.ok({ payments: [], subscription: null });
+      }
+
+      const payments = await prisma.payment.findMany({
+        where: { subscriptionId: subscription.id },
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      return Result.ok({
+        subscription: {
+          id: subscription.id,
+          plan: subscription.plan,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          nextChargeAt: subscription.nextChargeAt,
+          status: subscription.status,
+        },
+        payments,
+      });
+    } catch (error) {
+      logger.error('Find payments by user error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to find payments'));
+    }
+  }
+
+  /**
+   * Crear un "ticket" de pago manual solicitado por el cliente
+   */
+  async createCustomerTicket(userId: string, input: TicketInput) {
+    try {
+      const subscription = await prisma.subscription.findFirst({
+        where: {
+          userId,
+          status: { in: ['ACTIVE', 'GRACE', 'PAST_DUE'] },
+        },
+        include: {
+          plan: true,
+        },
+      });
+
+      if (!subscription) {
+        return Result.error(new Error('No active subscription found'));
+      }
+
+      const amount = input.amount ?? Number(subscription.montoMensual || subscription.plan?.price || 0);
+      const currency = (subscription.plan?.currency || 'ARS').toUpperCase();
+
+      const payment = await prisma.payment.create({
+        data: {
+          subscriptionId: subscription.id,
+          amount,
+          monto: amount,
+          currency,
+          moneda: currency,
+          provider: 'customer',
+          type: 'ADMIN_MANUAL',
+          status: 'PENDING',
+          dueDate: subscription.nextChargeAt || subscription.currentPeriodEnd || undefined,
+          periodoDesde: subscription.currentPeriodStart || undefined,
+          periodoHasta: subscription.currentPeriodEnd || undefined,
+          note: input.note || 'Ticket de pago solicitado por el cliente',
+          metadata: {
+            ticket: true,
+            source: 'customer',
+          },
+        },
+      });
+
+      return Result.ok(payment);
+    } catch (error) {
+      logger.error('Create customer ticket error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to create payment ticket'));
+    }
   }
 }

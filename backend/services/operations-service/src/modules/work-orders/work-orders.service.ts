@@ -10,7 +10,7 @@ import {
 import { EventsService } from '../events/events.service';
 
 import { LocationUpdateDto } from './dto/location-update.dto';
-import { CreateWorkOrderDto, UpdateWorkOrderStateDto } from './dto/work-orders.dto';
+import { CreateWorkOrderDto, UpdateWorkOrderStateDto, WorkOrderFeedbackDto, WorkOrderIssueDto } from './dto/work-orders.dto';
 
 interface GeoLocation {
   lat: number;
@@ -132,6 +132,136 @@ export class WorkOrdersService {
     } catch (error) {
       logger.error('Find work order error', error);
       return Result.error(error instanceof Error ? error : new Error('Failed to find work order'));
+    }
+  }
+
+  /**
+   * Cliente cancela su propia orden si está en estado cancelable
+   */
+  async cancelByCustomer(userId: string, id: string, reason?: string) {
+    try {
+      const order = await prisma.workOrder.findFirst({
+        where: {
+          id,
+          customerId: userId,
+          state: { in: ['PENDIENTE', 'PROGRAMADA'] },
+        },
+      });
+
+      if (!order) {
+        return Result.error(new Error('Order not found or not cancelable'));
+      }
+
+      const updated = await prisma.workOrder.update({
+        where: { id },
+        data: {
+          state: 'CANCELADA',
+          canceledAt: new Date(),
+          cancelReason: reason || 'customer_cancel',
+          timeline: {
+            create: {
+              type: 'cancelada',
+              stateFrom: order.state,
+              stateTo: 'CANCELADA',
+              note: reason || 'Cancelada por el cliente',
+            },
+          },
+        },
+        include: {
+          timeline: true,
+        },
+      });
+
+      return Result.ok(updated);
+    } catch (error) {
+      logger.error('Customer cancel order error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to cancel order'));
+    }
+  }
+
+  /**
+   * Cliente deja feedback sobre una orden finalizada
+   */
+  async addFeedback(userId: string, id: string, dto: WorkOrderFeedbackDto) {
+    try {
+      const order = await prisma.workOrder.findFirst({
+        where: {
+          id,
+          customerId: userId,
+          state: { in: ['FINALIZADA', 'VISITADA_FINALIZADA'] },
+        },
+        include: { timeline: true },
+      });
+
+      if (!order) {
+        return Result.error(new Error('Order not found or not finalized'));
+      }
+
+      const updated = await prisma.workOrder.update({
+        where: { id },
+        data: {
+          timeline: {
+            create: {
+              type: 'feedback',
+              stateFrom: order.state,
+              stateTo: order.state,
+              note: dto.comment || 'Feedback del cliente',
+              meta: {
+                rating: dto.rating,
+                comment: dto.comment,
+              },
+            },
+          },
+        },
+        include: { timeline: true },
+      });
+
+      return Result.ok(updated);
+    } catch (error) {
+      logger.error('Add feedback error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to add feedback'));
+    }
+  }
+
+  /**
+   * Reportar incidencia/ticket asociado a orden
+   */
+  async addIssue(userId: string, id: string, dto: WorkOrderIssueDto) {
+    try {
+      // Validar ownership para customer; admin/operator pueden cualquiera
+      const order = await prisma.workOrder.findFirst({
+        where: {
+          id,
+          OR: [
+            { customerId: userId },
+            // permitir admin/operator: si no coincide customer, igual dejar pasar
+          ],
+        },
+      });
+
+      if (!order) {
+        return Result.error(new Error('Work order not found or unauthorized'));
+      }
+
+      const event = await prisma.workOrderEvent.create({
+        data: {
+          workOrderId: id,
+          type: 'issue',
+          stateFrom: order.state as WorkOrderState,
+          stateTo: order.state as WorkOrderState,
+          note: dto.description,
+          meta: {
+            category: dto.category,
+            description: dto.description,
+            attachments: dto.attachments || [],
+          },
+        },
+      });
+
+      return Result.ok(event);
+    } catch (error) {
+      logger.error('Add issue error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to add issue'));
     }
   }
 
@@ -442,6 +572,88 @@ export class WorkOrdersService {
     }
   }
 
+  async getMyTimeline(userId: string, id: string): Promise<Result<Error, unknown[]>> {
+    try {
+      const order = await prisma.workOrder.findFirst({
+        where: {
+          id,
+          customerId: userId,
+        },
+      });
+
+      if (!order) {
+        return Result.error(new Error('Work order not found'));
+      }
+
+      const events = await prisma.workOrderEvent.findMany({
+        where: { workOrderId: id },
+        orderBy: { at: 'asc' },
+      });
+
+      return Result.ok(events);
+    } catch (error) {
+      logger.error('Get my timeline error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to get timeline'));
+    }
+  }
+
+  /**
+   * Calendario de visitas/turnos del cliente
+   */
+  async getMyCalendar(userId: string): Promise<Result<Error, unknown[]>> {
+    try {
+      const client = await prisma.client.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+
+      if (!client) {
+        return Result.error(new Error('Client not found'));
+      }
+
+      const orders = await prisma.workOrder.findMany({
+        where: {
+          clientId: client.id,
+          state: {
+            notIn: ['FINALIZADA', 'CANCELADA'],
+          },
+        },
+        select: {
+          id: true,
+          state: true,
+          address: true,
+          scheduledAt: true,
+          fechaProgramada: true,
+          visitWindowStart: true,
+          visitWindowEnd: true,
+          workType: {
+            select: { id: true, nombre: true },
+          },
+        },
+        orderBy: [
+          { scheduledAt: 'asc' },
+          { fechaProgramada: 'asc' },
+          { createdAt: 'asc' },
+        ],
+      });
+
+      const events = orders.map((o) => ({
+        id: o.id,
+        state: o.state,
+        address: o.address,
+        workType: o.workType,
+        scheduledAt: o.scheduledAt || o.fechaProgramada || o.visitWindowStart || null,
+        visitWindowStart: o.visitWindowStart,
+        visitWindowEnd: o.visitWindowEnd,
+      }));
+
+      return Result.ok(events);
+    } catch (error) {
+      logger.error('Get my calendar error', error);
+      return Result.error(error instanceof Error ? error : new Error('Failed to get calendar'));
+    }
+  }
+
   async recordLocationUpdate(id: string, dto: LocationUpdateDto): Promise<Result<
     Error,
     { orderId: string; crewId: string; lat: number; lng: number }
@@ -634,6 +846,7 @@ export class WorkOrdersService {
         return Result.error(new Error(`Client not found. Please verify the client exists and is active.`));
       }
 
+      // Solo cuentas ACTIVAS pueden crear solicitudes desde la app
       if (client.estado !== 'ACTIVO') {
         return Result.error(new Error('Your account is not active. Please complete the verification process.'));
       }

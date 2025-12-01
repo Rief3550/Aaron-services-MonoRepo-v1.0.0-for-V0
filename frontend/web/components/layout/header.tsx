@@ -6,6 +6,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth/hooks/use-auth';
+import { formatRolesList } from '@/lib/auth/role-labels';
 
 export function Header() {
   const { user, signOut } = useAuth();
@@ -27,7 +28,7 @@ export function Header() {
                 {user?.fullName || user?.email || 'Usuario'}
               </div>
               <div className="text-xs text-gray-500">
-                {user?.roles.join(', ') || 'Sin roles'}
+                {formatRolesList(user?.roles || []) || 'Sin roles'}
               </div>
             </div>
             
@@ -51,5 +52,4 @@ export function Header() {
     </header>
   );
 }
-
 

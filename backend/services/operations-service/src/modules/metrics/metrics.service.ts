@@ -436,29 +436,67 @@ export class MetricsService {
 
   async getSubscriptionsTimeline(filters: { from?: string; to?: string; groupBy?: 'day' | 'month' }): Promise<Result<Error, any>> {
     try {
-      // This is a simplified implementation. Ideally we'd query subscriptions created/cancelled in range.
-      // For now returning empty array as placeholder or basic query
-      const where: any = {};
-      if (filters.from) where.createdAt = { gte: new Date(filters.from) };
-      if (filters.to) where.createdAt = { ...where.createdAt, lte: new Date(filters.to) };
+      const groupBy = filters.groupBy || 'day';
 
-      const newSubs = await prisma.subscription.findMany({
-        where,
-        select: { createdAt: true },
-        orderBy: { createdAt: 'asc' },
-      });
+      const createdWhere: any = {};
+      const canceledWhere: any = { canceledAt: { not: null } };
 
-      // Grouping logic similar to groupByDate
-      const grouped = this.groupByDate(newSubs, 'createdAt');
-      
-      return Result.ok(grouped.map(g => ({
-        periodo: g.fecha,
-        altas: g.cantidad,
-        bajas: 0, // TODO: Implement bajas query
-      })));
+      if (filters.from) {
+        const fromDate = new Date(filters.from);
+        createdWhere.createdAt = { gte: fromDate };
+        canceledWhere.canceledAt = { ...(canceledWhere.canceledAt || {}), gte: fromDate };
+      }
+      if (filters.to) {
+        const toDate = new Date(filters.to);
+        createdWhere.createdAt = { ...(createdWhere.createdAt || {}), lte: toDate };
+        canceledWhere.canceledAt = { ...(canceledWhere.canceledAt || {}), lte: toDate };
+      }
+
+      const [newSubs, canceledSubs] = await Promise.all([
+        prisma.subscription.findMany({
+          where: createdWhere,
+          select: { createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.subscription.findMany({
+          where: canceledWhere,
+          select: { canceledAt: true },
+          orderBy: { canceledAt: 'asc' },
+        }),
+      ]);
+
+      const altas = this.groupByPeriod(newSubs.map((s) => s.createdAt), groupBy);
+      const bajas = this.groupByPeriod(
+        canceledSubs.map((s) => s.canceledAt!).filter(Boolean),
+        groupBy,
+      );
+
+      // Unir periodos
+      const allPeriods = new Set<string>([...Object.keys(altas), ...Object.keys(bajas)]);
+      const timeline = Array.from(allPeriods).sort().map((periodo) => ({
+        periodo,
+        altas: altas[periodo] || 0,
+        bajas: bajas[periodo] || 0,
+      }));
+
+      return Result.ok(timeline);
     } catch (error) {
       return Result.error(error instanceof Error ? error : new Error('Failed to get timeline'));
     }
+  }
+
+  private groupByPeriod(dates: Date[], groupBy: 'day' | 'month' | 'year') {
+    return dates.reduce((acc, date) => {
+      const d = new Date(date);
+      let key = d.toISOString().split('T')[0]; // day
+      if (groupBy === 'month') {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      } else if (groupBy === 'year') {
+        key = `${d.getFullYear()}`;
+      }
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
   }
 
   async getRecurringServices(filters: { from?: string; to?: string }): Promise<Result<Error, any>> {

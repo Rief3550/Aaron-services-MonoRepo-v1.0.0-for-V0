@@ -125,9 +125,8 @@ export default function CuadrillasPage() {
         </div>
       ) : (
         <CrewList
-          key={refreshKey}
+          refreshKey={refreshKey}
           onEdit={handleEdit}
-          onRefresh={() => setRefreshKey((prev) => prev + 1)}
         />
       )}
     </div>

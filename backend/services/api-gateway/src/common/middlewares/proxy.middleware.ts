@@ -314,8 +314,8 @@ export class ProxyMiddleware implements NestMiddleware {
     // ========================================
     // Proxy /roles/* → AUTH_URL (no JWT guard)
     // ========================================
-    if (path.startsWith('/roles/')) {
-      console.log('[ProxyMiddleware] Routing /roles/* to Auth Service');
+    if (path === '/roles' || path.startsWith('/roles')) {
+      console.log('[ProxyMiddleware] Routing /roles to Auth Service');
       return this.rolesProxy(req, res, next);
     }
 

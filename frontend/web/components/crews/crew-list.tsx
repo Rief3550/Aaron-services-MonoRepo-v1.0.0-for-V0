@@ -6,16 +6,15 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { fetchCrews, updateCrewState, type Crew } from '@/lib/crews/service';
-import { Loader } from '@/components/ui/loader';
 
 interface CrewListProps {
   onEdit: (crew: Crew) => void;
-  onRefresh?: () => void;
+  refreshKey?: number;
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -26,29 +25,28 @@ const STATE_COLORS: Record<string, string> = {
   busy: 'BUSY',
 };
 
-export function CrewList({ onEdit, onRefresh }: CrewListProps) {
+export function CrewList({ onEdit, refreshKey }: CrewListProps) {
   const [crews, setCrews] = useState<Crew[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadCrews = async () => {
+  const loadCrews = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await fetchCrews();
       setCrews(data);
-      onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar cuadrillas');
       console.error('Error loading crews:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadCrews();
-  }, []);
+  }, [loadCrews, refreshKey]);
 
   const handleStateChange = async (crew: Crew, newState: string) => {
     try {
@@ -194,4 +192,3 @@ export function CrewList({ onEdit, onRefresh }: CrewListProps) {
     </div>
   );
 }
-

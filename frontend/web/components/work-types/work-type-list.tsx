@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
@@ -16,36 +16,34 @@ import {
   updateWorkType,
   type WorkType,
 } from '@/lib/work-types/api';
-import { Loader } from '@/components/ui/loader';
 
 interface WorkTypeListProps {
   onEdit: (workType: WorkType) => void;
-  onRefresh?: () => void;
+  refreshKey?: number;
 }
 
-export function WorkTypeList({ onEdit, onRefresh }: WorkTypeListProps) {
+export function WorkTypeList({ onEdit, refreshKey }: WorkTypeListProps) {
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadWorkTypes = async () => {
+  const loadWorkTypes = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await fetchWorkTypes({ admin: true });
       setWorkTypes(data);
-      onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar tipos de trabajo');
       console.error('Error loading work types:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadWorkTypes();
-  }, []);
+  }, [loadWorkTypes, refreshKey]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este tipo de trabajo?')) {

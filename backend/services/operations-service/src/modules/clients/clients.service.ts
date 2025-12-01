@@ -38,18 +38,43 @@ export class ClientsService {
       throw new ConflictException(`Ya existe un cliente con el email ${dto.email}`);
     }
 
-    const client = await prisma.client.create({
-      data: {
-        userId: dto.userId,
-        email: dto.email,
-        nombreCompleto: dto.fullName,
+    // Crear cliente + propiedad + suscripción básica (si hay plan activo) en transacción
+    const result = await prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          userId: dto.userId,
+          email: dto.email,
+          nombreCompleto: dto.fullName,
         estado: EstadoCliente.PENDIENTE,
-        lat: dto.lat,
-        lng: dto.lng,
-      },
+        lat: dto.lat || 0,
+        lng: dto.lng || 0,
+        },
+      });
+
+      // Crear propiedad mínima (requerida por subscription/work orders)
+      const property = await tx.customerProperty.create({
+        data: {
+          clientId: client.id,
+          userId: dto.userId,
+          address: dto.address || 'Sin dirección',
+          lat: dto.lat || 0,
+          lng: dto.lng || 0,
+          status: 'PRE_ONBOARD',
+          summary: 'Propiedad creada desde signup (datos mínimos)',
+        },
+      });
+
+      // Buscar plan activo para autocontratar (primero disponible)
+      const plan = await tx.plan.findFirst({
+        where: { active: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      // No crear suscripción automática: se asigna tras auditoría
+      return { client, property, subscription: null };
     });
 
-    return client;
+    return result;
   }
 
   /**

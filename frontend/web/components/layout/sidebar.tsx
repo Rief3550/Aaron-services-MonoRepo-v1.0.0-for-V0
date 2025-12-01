@@ -134,9 +134,9 @@ const navItems: NavItem[] = [
     roles: ['ADMIN'],
   },
   {
-    label: 'Configuración',
-    href: '/configuracion',
-    icon: <IconSettings />,
+    label: 'Gestión Pagos',
+    href: '/admin/pagos',
+    icon: <IconList />,
     roles: ['ADMIN'],
   },
 ];
@@ -216,4 +216,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

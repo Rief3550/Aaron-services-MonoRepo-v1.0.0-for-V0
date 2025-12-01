@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { fetchRoles, createUser, updateUser, fetchUserById, type User, type CreateUserDto, type UpdateUserDto } from '@/lib/users/api';
 import { Loader } from '@/components/ui/loader';
 import { ErrorMessage } from '@/components/ui/error-message';
+import { formatRoleLabel } from '@/lib/auth/role-labels';
 
 interface UserFormProps {
   user?: User;
@@ -301,7 +302,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                 onChange={() => handleRoleToggle(role.id)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <span className="ml-2 text-sm text-gray-700">{role.name}</span>
+              <span className="ml-2 text-sm text-gray-700">{formatRoleLabel(role.name)}</span>
             </label>
           ))}
         </div>
@@ -337,4 +338,3 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     </form>
   );
 }
-

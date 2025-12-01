@@ -29,6 +29,9 @@ COPY tsconfig.base.json tsconfig.base.json
 COPY frontend/web/tsconfig.json frontend/web/tsconfig.json
 COPY . .
 
+# Recreate workspace links after copying full source (keeps dev deps for builds)
+RUN pnpm install --prefer-offline --prod=false
+
 # Generate Prisma Clients (with Linux binaries)
 # CRITICAL: Delete Mac-generated clients from ALL locations
 RUN rm -rf node_modules/@aaron/prisma-client-auth || true

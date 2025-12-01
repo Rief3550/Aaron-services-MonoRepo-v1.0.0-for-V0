@@ -4,9 +4,8 @@ export class PingDto {
   @IsString()
   crewId: string;
 
-  @IsOptional()
   @IsString()
-  orderId?: string;
+  orderId: string;
 
   @IsNumber()
   @Min(-90)
@@ -22,4 +21,3 @@ export class PingDto {
   @IsEnum(['realtime', 'hourly_api'])
   source?: 'realtime' | 'hourly_api';
 }
-

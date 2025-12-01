@@ -126,9 +126,8 @@ export default function AdminWorkTypesPage() {
         </div>
       ) : (
         <WorkTypeList
-          key={refreshKey}
+          refreshKey={refreshKey}
           onEdit={handleEdit}
-          onRefresh={() => setRefreshKey((prev) => prev + 1)}
         />
       )}
     </div>

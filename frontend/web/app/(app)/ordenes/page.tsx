@@ -146,7 +146,7 @@ export default function OrdenesPage() {
       label: 'Servicio',
       sortable: true,
       render: (order) => (
-        <Link href={`/operaciones/ordenes/${order.id}`} className="hover:text-blue-600 transition-colors">
+        <Link href={`/ordenes/${order.id}`} className="hover:text-blue-600 transition-colors">
             {order.serviceCategory}
         </Link>
       )

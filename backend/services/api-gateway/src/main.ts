@@ -15,16 +15,23 @@ async function bootstrap() {
   // ========================================
   // CORS Configuration
   // ========================================
-  const allowedOrigins = configService.get<string>('CORS_ORIGINS')?.split(',') || [
-    /localhost:\d+$/,
-    /127\.0\.0\.1:\d+$/,
-  ];
+  const corsFromEnv = configService.get<string>('CORS_ORIGINS');
+  const isProd = (configService.get<string>('NODE_ENV') || 'development') === 'production';
+
+  // En dev: reflejar cualquier origen (permite credenciales). En prod: usar lista o regex.
+  const allowedOrigins: boolean | Array<string | RegExp> = corsFromEnv
+    ? corsFromEnv.split(',')
+    : isProd
+      ? [/localhost:\d+$/, /127\.0\.0\.1:\d+$/]
+      : true; // true => devuelve el mismo origin en respuesta (útil con credentials)
 
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-requested-with', 'accept'],
     exposedHeaders: ['x-request-id'],
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    maxAge: 86400,
   });
 
   logger.log(`CORS enabled for origins: ${JSON.stringify(allowedOrigins)}`);

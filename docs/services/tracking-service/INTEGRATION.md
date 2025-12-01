@@ -29,7 +29,7 @@ Cuando operations-service marca una orden como `en_camino`:
     "address": "Calle 123",
     "lat": -34.603722,
     "lng": -58.381592
-  },
+  }, // SIEMPRE las coords fijas de la propiedad del cliente (destino)
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
@@ -38,11 +38,11 @@ Cuando operations-service marca una orden como `en_camino`:
 
 **Tracking Service:**
 1. Escucha eventos en canal `work_order_events` (configurable)
-2. Cuando recibe `ORDER_EN_CAMINO`:
+2. Cuando recibe `ORDER_EN_CAMINO` (requiere lat/lng destino de la propiedad):
    - **Abre/sugiere sala WebSocket**: `order:{orderId}`
    - Broadcast evento `order_en_camino` a todos los clientes del room
    - Si hay `crewId`, también broadcast al room `crew:{crewId}`
-   - Si hay ubicación target, la emite como location inicial
+   - Si hay ubicación target, la emite como destino de la ruta
 
 ### 3. App Móvil se conecta
 
@@ -112,7 +112,8 @@ Cuando la orden está `en_camino`, la app móvil envía ubicación cada **5-10 s
 
 ```json
 {
-  "type": "location_received",
+  "type": "location_saved",
+  "pingId": "uuid",
   "timestamp": "2024-01-15T10:30:05Z",
   "saved": true
 }
@@ -193,6 +194,11 @@ Enviar ubicación actual (cuando orden en_camino)
 }
 ```
 
+**Reglas:**
+- `crewId` y `orderId` son obligatorios.
+- Las coordenadas deben ser válidas (-90/90, -180/180).
+- Si faltan IDs o coordenadas, el servidor responde con `error`.
+
 #### `ping`
 Mantener conexión viva
 ```json
@@ -200,6 +206,27 @@ Mantener conexión viva
   "type": "ping"
 }
 ```
+
+---
+
+## Guía corta para la app móvil (técnico)
+
+1) **Al recibir la asignación / ver orden en “en_camino”**  
+   - Conectarse a `ws://.../ws/track?token=ACCESS_TOKEN`.  
+   - Suscribirse a `order:{orderId}` (y opcional `crew:{crewId}` para todas sus órdenes activas).  
+   - Mostrar el destino usando `targetLocation` del evento `order_en_camino` (si no llega, usar coords de la propiedad obtenidas desde ops).
+
+2) **Rumbo al cliente (estado `en_camino`)**  
+   - Enviar `location_update` cada 5–10s con `crewId`, `orderId`, `lat`, `lng`.  
+   - Opcional: abrir navegación externa con `daddr=lat_destino,lng_destino`.
+
+3) **Al llegar / empezar trabajo (estado `en_trabajo` / `visita`)**  
+   - Reducir frecuencia: usar `POST /track/ping` cada ~1h con última posición.  
+   - Mantener WS suscrito si se quiere seguir recibiendo órdenes/eventos.
+
+4) **Al finalizar o cancelar**  
+   - Dejar de enviar ubicaciones y cerrar la suscripción WS.  
+   - El cambio de estado (`order_status`) llegará por WS; con eso la app puede apagar el tracking.
 
 ### Servidor → Cliente
 
@@ -404,4 +431,3 @@ function switchToHourlyPing() {
 1. Verificar que clientes estén suscritos al room correcto
 2. Verificar formato de room: `order:{id}` o `crew:{id}`
 3. Revisar logs de WebSocket para conexiones activas
-

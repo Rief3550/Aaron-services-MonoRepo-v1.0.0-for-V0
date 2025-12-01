@@ -300,6 +300,52 @@ GET /ops/work-orders/{orderId}/timeline
 Authorization: Bearer {accessToken}
 ```
 
+### Timeline de Orden (cliente)
+```http
+GET /ops/work-orders/me/{orderId}/timeline
+Authorization: Bearer {accessToken}
+```
+
+### Altas vs Bajas (admin dashboard)
+- El gateway expone `/metrics/admin/altas-bajas-timeline?groupBy=month|day` y ya se usa en el dashboard admin (no se consume desde la app móvil, solo referencia de backend).
+
+### Calendario de Visitas
+```http
+GET /ops/work-orders/me/calendar
+Authorization: Bearer {accessToken}
+```
+
+### Cancelar Orden (si aún está pendiente)
+```http
+PATCH /ops/work-orders/me/{orderId}/cancel
+Authorization: Bearer {accessToken}
+```
+
+### Calificar Orden Finalizada (feedback)
+```http
+POST /ops/work-orders/{orderId}/feedback
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Muy buen trabajo"
+}
+```
+
+### Reportar Incidencia (ticket) ligada a una orden
+```http
+POST /ops/work-orders/{orderId}/issue
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "category": "facturacion|servicio|app|otro",
+  "description": "Detalle del problema",
+  "attachments": []
+}
+```
+
 ---
 
 ## 📋 Planes Disponibles
@@ -328,7 +374,153 @@ Authorization: Bearer {accessToken}
 
 ---
 
+## 💳 Pagos y Facturación
+
+### Historial de Pagos
+```http
+GET /ops/payments/me
+Authorization: Bearer {accessToken}
+```
+
+### Crear Ticket de Pago (manual)
+```http
+POST /ops/payments/me/ticket
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "amount": 15000,      // opcional, si no se envía usa el monto mensual de la suscripción
+  "note": "Pago en efectivo en oficina"
+}
+```
+
+**Respuesta (ambos casos)**
+```json
+{
+  "subscription": {"id":"...","plan":{...},"currentPeriodEnd":"...","nextChargeAt":"...","status":"ACTIVE"},
+  "payments": [
+    {
+      "id": "uuid",
+      "status": "PENDING|POSTED",
+      "amount": 15000,
+      "currency": "ARS",
+      "dueDate": "2025-02-01T00:00:00Z",
+      "periodoDesde": "2025-01-01T00:00:00Z",
+      "periodoHasta": "2025-02-01T00:00:00Z",
+      "note": "Ticket de pago solicitado por el cliente"
+    }
+  ]
+}
+```
+
+### Obtener Factura/Comprobante
+```http
+GET /ops/payments/{paymentId}/receipt
+Authorization: Bearer {accessToken}
+```
+
+---
+
+## 👥 Perfil y Cuenta
+
+### Actualizar Perfil
+```http
+PUT /ops/clients/me
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "nombreCompleto": "Nuevo nombre",
+  "telefono": "+54...",
+  "direccionFacturacion": "Dirección",
+  "documento": "12345678"
+}
+```
+
+### Cambiar Contraseña
+```http
+POST /auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "token-enviado-por-mail",
+  "password": "NuevaPassword123!"
+}
+```
+
+---
+
+## 📍 Tracking (Tiempo Real)
+
+### WebSocket Tracking
+```
+ws://localhost:3100/tracking/ws/track?token={accessToken}
+```
+- Suscribirse a sala de orden: `{"type":"subscribe","room":"order:{orderId}"}`
+- Enviar ubicación (cada 5-10s): `{"type":"location_update","crewId":"...","orderId":"...","lat":-34.6,"lng":-58.4}`
+- Ping: `{"type":"ping"}` para mantener viva la conexión.
+
+### Ping HTTP cada 1h (orden en trabajo)
+```http
+POST /tracking/ping
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "crewId": "uuid",
+  "orderId": "uuid",
+  "lat": -34.6,
+  "lng": -58.4,
+  "source": "hourly_api"
+}
+```
+
+### Ruta Histórica
+```http
+GET /tracking/route?crewId={crewId}&orderId={orderId}&from=2025-01-01&to=2025-01-02
+Authorization: Bearer {accessToken}
+```
+
+**Respuesta (ejemplo):**
+```json
+{
+  "points": [
+    { "lat": -34.60, "lng": -58.38, "timestamp": "2025-01-01T10:00:00Z" }
+  ],
+  "distanceKm": 12.4,
+  "durationMinutes": 35
+}
+```
+
+---
+
 ## 🔔 Notificaciones (Futuro)
+
+## 🆕 Baja de Suscripción
+```http
+POST /ops/subscriptions/me/cancel
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "immediate": false, // false = fin de período (default), true = cancelar ya
+  "reason": "Me mudo / ya no necesito el servicio" // obligatorio
+}
+```
+
+**Respuesta esperada**: retorna la suscripción con `status` y fechas `currentPeriodEnd`, `nextChargeAt`, `canceledAt` para mostrar días restantes.
+
+## 🆕 Reportar Problema / Soporte (pendiente)
+- Definir endpoint en ops-service (ej: `POST /ops/support/ticket` o `POST /ops/work-orders/{id}/issue`).
+- Body sugerido:
+```json
+{
+  "orderId": "uuid",
+  "category": "facturacion|servicio|app|otro",
+  "description": "Detalle del problema",
+  "attachments": []
+}
+```
 
 ### Obtener Notificaciones
 ```http
@@ -356,16 +548,31 @@ Authorization: Bearer {accessToken}
 | **Work Orders** | POST | `/ops/work-orders/request` | Crear nueva orden |
 | **Work Orders** | GET | `/ops/work-orders/me/{id}` | Detalle de orden |
 | **Work Orders** | GET | `/ops/work-orders/{id}/timeline` | Timeline de orden |
+| **Work Orders** | GET | `/ops/work-orders/me/{id}/timeline` | Timeline para el cliente |
+| **Work Orders** | PATCH | `/ops/work-orders/me/{id}/cancel` | Cancelar orden pendiente |
+| **Work Orders** | POST | `/ops/work-orders/{id}/feedback` | Calificar orden |
+| **Work Orders** | POST | `/ops/work-orders/{id}/issue` | Reportar incidencia/ticket |
+| **Work Orders** | GET | `/ops/work-orders/me/calendar` | Calendario de visitas/turnos |
+| **Planes** | GET | `/ops/plans` | Listar planes activos |
+| **Pagos** | GET | `/ops/payments/me` | Historial de pagos |
+| **Pagos** | GET | `/ops/payments/{paymentId}/receipt` | Obtener comprobante |
+| **Perfil** | PUT | `/ops/clients/me` | Actualizar perfil |
+| **Tracking** | WS | `/tracking/ws/track?token=...` | Conexión WebSocket de tracking |
+| **Tracking** | POST | `/tracking/ping` | Ping horario de ubicación |
+| **Tracking** | GET | `/tracking/route` | Ruta histórica de orden/cuadrilla |
+| **Suscripciones** | POST | `/ops/subscriptions/me/cancel` | Solicitar cancelación de suscripción (al fin de período por defecto) |
+| **Suscripciones** | POST | `/ops/subscriptions/me/upgrade-request` | Solicitar cambio de plan |
+| **Suscripciones** | POST | `/ops/subscriptions/:id/pause` | Pausar suscripción (ADMIN) |
+| **Work Orders** | GET | `/ops/work-orders/me/calendar` | Calendario de visitas/turnos |
 
 ---
 
 ## 🔍 Endpoints que Faltan o Necesitan Verificación
 
-1. **Listar Planes Disponibles** - ¿Existe endpoint público para planes?
-2. **Notificaciones** - Sistema de notificaciones push
-3. **Historial de Pagos** - Ver pagos realizados
-4. **Actualizar Perfil** - Editar datos del cliente
-5. **Cambiar Contraseña** - Desde la app
+1. **Notificaciones** - Sistema de notificaciones push (pendiente).
+2. **Calendario de visitas** - Si se requiere mostrar agenda programada, definir endpoint específico.
+3. **UX de cambio/recupero de contraseña** - Confirmar flujo en mobile.
+4. **Soporte/Ticket** - Endpoint pendiente (ej: `/ops/support/ticket`).
 
 ---
 
@@ -376,4 +583,3 @@ Authorization: Bearer {accessToken}
 - Usar `refreshToken` para obtener nuevo `accessToken`
 - Los endpoints con `/me` devuelven datos del usuario autenticado
 - Las coordenadas (lat/lng) son requeridas en varios endpoints
-

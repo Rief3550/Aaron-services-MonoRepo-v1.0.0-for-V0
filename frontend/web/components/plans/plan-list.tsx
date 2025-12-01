@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DataTable, type TableColumn } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
@@ -14,36 +14,34 @@ import {
   fetchPlans,
   type Plan,
 } from '@/lib/plans/api';
-import { Loader } from '@/components/ui/loader';
 
 interface PlanListProps {
   onEdit: (plan: Plan) => void;
-  onRefresh?: () => void;
+  refreshKey?: number;
 }
 
-export function PlanList({ onEdit, onRefresh }: PlanListProps) {
+export function PlanList({ onEdit, refreshKey }: PlanListProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPlans = async () => {
+  const loadPlans = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await fetchPlans({ admin: true, activeOnly: false });
       setPlans(data);
-      onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar planes');
       console.error('Error loading plans:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadPlans();
-  }, []);
+  }, [loadPlans, refreshKey]);
 
   const handleToggleActive = async (plan: Plan) => {
     try {

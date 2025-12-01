@@ -167,6 +167,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const { crewId, orderId, lat, lng } = data;
 
+      if (!crewId || !orderId) {
+        client.emit('error', { message: 'Missing crewId or orderId for location update' });
+        return;
+      }
+
       // Validate coordinates
       if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
         client.emit('error', { message: 'Invalid coordinates' });
@@ -250,4 +255,3 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 }
-

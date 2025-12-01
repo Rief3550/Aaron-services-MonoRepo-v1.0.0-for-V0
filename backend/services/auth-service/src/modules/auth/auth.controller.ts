@@ -79,11 +79,15 @@ export class AuthController {
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
     
-    if (refreshToken) {
-      await this.authService.signout(refreshToken);
+    try {
+      if (refreshToken) {
+        await this.authService.signout(refreshToken);
+      }
+      return toApiResponse(null, { message: 'Signed out successfully' });
+    } catch (error) {
+      // No romper logout aunque falle el borrado de sesión
+      return toApiResponse(null, { message: 'Signed out successfully' });
     }
-    
-    return toApiResponse(null, { message: 'Signed out successfully' });
   }
 
   @Post('refresh')

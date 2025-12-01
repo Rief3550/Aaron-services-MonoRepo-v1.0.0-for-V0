@@ -20,7 +20,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { LocationUpdateDto } from './dto/location-update.dto';
 import { MapFiltersDto } from './dto/map-filters.dto';
 import { WorkOrderFiltersDto } from './dto/work-order-filters.dto';
-import { CreateWorkOrderDto, UpdateWorkOrderStateDto, CreateWorkOrderRequestDto } from './dto/work-orders.dto';
+import { CreateWorkOrderDto, UpdateWorkOrderStateDto, CreateWorkOrderRequestDto, WorkOrderFeedbackDto, WorkOrderIssueDto } from './dto/work-orders.dto';
 import { WorkOrdersService } from './work-orders.service';
 
 
@@ -82,6 +82,73 @@ export class WorkOrdersController {
     @Param('id') id: string,
   ) {
     return this.workOrdersService.findMyOrderById(user.userId, id);
+  }
+
+  /**
+   * Calendario de visitas/turnos para el cliente
+   * GET /ops/work-orders/me/calendar
+   */
+  @Get('me/calendar')
+  @Roles('CUSTOMER', 'ADMIN')
+  async getMyCalendar(@CurrentUser() user: { userId: string }) {
+    return this.workOrdersService.getMyCalendar(user.userId);
+  }
+
+  /**
+   * Timeline para cliente (solo su orden)
+   * GET /ops/work-orders/me/:id/timeline
+   */
+  @Get('me/:id/timeline')
+  @Roles('CUSTOMER', 'ADMIN')
+  async getMyTimeline(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ) {
+    return this.workOrdersService.getMyTimeline(user.userId, id);
+  }
+
+  /**
+   * Cliente cancela una orden pendiente/programada propia
+   * PATCH /ops/work-orders/me/:id/cancel
+   */
+  @Patch('me/:id/cancel')
+  @Roles('CUSTOMER', 'ADMIN')
+  async cancelMyOrder(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.workOrdersService.cancelByCustomer(user.userId, id, reason);
+  }
+
+  /**
+   * Cliente deja feedback sobre una orden finalizada
+   * POST /ops/work-orders/:id/feedback
+   */
+  @Post(':id/feedback')
+  @HttpCode(HttpStatus.OK)
+  @Roles('CUSTOMER', 'ADMIN')
+  async feedback(
+    @CurrentUser() user: { userId: string; roles?: string[] },
+    @Param('id') id: string,
+    @Body() dto: WorkOrderFeedbackDto,
+  ) {
+    return this.workOrdersService.addFeedback(user.userId, id, dto);
+  }
+
+  /**
+   * Cliente/operador reporta incidencia asociada a una orden
+   * POST /ops/work-orders/:id/issue
+   */
+  @Post(':id/issue')
+  @HttpCode(HttpStatus.OK)
+  @Roles('CUSTOMER', 'ADMIN', 'OPERATOR')
+  async issue(
+    @CurrentUser() user: { userId: string; roles?: string[] },
+    @Param('id') id: string,
+    @Body() dto: WorkOrderIssueDto,
+  ) {
+    return this.workOrdersService.addIssue(user.userId, id, dto);
   }
 
   // =========================================
