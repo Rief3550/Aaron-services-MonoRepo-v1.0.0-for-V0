@@ -31,9 +31,27 @@ export interface UpdatePlanDto {
 /**
  * Obtener lista de planes
  */
-export async function fetchPlans(activeOnly: boolean = true): Promise<Plan[]> {
-  const query = activeOnly ? '?activeOnly=true' : '?activeOnly=false';
-  const result = await opsApi.get<Plan[]>(`/plans${query}`);
+type FetchPlansOptions = {
+  activeOnly?: boolean;
+  admin?: boolean;
+};
+
+export async function fetchPlans(options?: FetchPlansOptions): Promise<Plan[]> {
+  const activeOnly = options?.activeOnly ?? true;
+  const admin = options?.admin ?? false;
+
+  const params = new URLSearchParams();
+  if (admin) {
+    if (options?.activeOnly !== undefined) {
+      params.append('activeOnly', activeOnly ? 'true' : 'false');
+    }
+  } else {
+    params.append('activeOnly', activeOnly ? 'true' : 'false');
+  }
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const endpoint = admin ? `/admin/plans${query}` : `/plans${query}`;
+  const result = await opsApi.get<Plan[]>(endpoint);
   
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al cargar planes');
@@ -45,8 +63,10 @@ export async function fetchPlans(activeOnly: boolean = true): Promise<Plan[]> {
 /**
  * Obtener plan por ID
  */
-export async function fetchPlanById(id: string): Promise<Plan> {
-  const result = await opsApi.get<Plan>(`/plans/${id}`);
+export async function fetchPlanById(id: string, options?: { admin?: boolean }): Promise<Plan> {
+  const admin = options?.admin ?? false;
+  const endpoint = admin ? `/admin/plans/${id}` : `/plans/${id}`;
+  const result = await opsApi.get<Plan>(endpoint);
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al cargar plan');
   }
@@ -57,7 +77,7 @@ export async function fetchPlanById(id: string): Promise<Plan> {
  * Crear nuevo plan
  */
 export async function createPlan(data: CreatePlanDto): Promise<Plan> {
-  const result = await opsApi.post<Plan>('/plans', data);
+  const result = await opsApi.post<Plan>('/admin/plans', data);
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al crear plan');
   }
@@ -68,7 +88,7 @@ export async function createPlan(data: CreatePlanDto): Promise<Plan> {
  * Actualizar plan
  */
 export async function updatePlan(id: string, data: UpdatePlanDto): Promise<Plan> {
-  const result = await opsApi.patch<Plan>(`/plans/${id}`, data);
+  const result = await opsApi.patch<Plan>(`/admin/plans/${id}`, data);
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al actualizar plan');
   }
@@ -85,4 +105,3 @@ export async function fetchPlanPriceHistory(id: string): Promise<unknown[]> {
   }
   return Array.isArray(result.data) ? result.data : [result.data];
 }
-

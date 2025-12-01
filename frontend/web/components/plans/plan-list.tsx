@@ -30,7 +30,7 @@ export function PlanList({ onEdit, onRefresh }: PlanListProps) {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchPlans(false); // Mostrar todos, no solo activos
+      const data = await fetchPlans({ admin: true, activeOnly: false });
       setPlans(data);
       onRefresh?.();
     } catch (err) {
@@ -159,4 +159,3 @@ export function PlanList({ onEdit, onRefresh }: PlanListProps) {
     </div>
   );
 }
-

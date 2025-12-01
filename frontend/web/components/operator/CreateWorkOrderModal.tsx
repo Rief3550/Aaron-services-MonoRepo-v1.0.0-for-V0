@@ -24,6 +24,8 @@ interface Property {
 export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkOrderModalProps) {
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [formData, setFormData] = useState<CreateWorkOrderRequestDto>({
@@ -35,7 +37,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
     peligroAccidente: 'NO',
     observaciones: '',
     prioridad: 'MEDIA',
-    canal: 'WEB',
+    canal: 'APP',
     cantidadEstimada: undefined,
     unidadCantidad: '',
   });
@@ -56,7 +58,7 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
         peligroAccidente: 'NO',
         observaciones: '',
         prioridad: 'MEDIA',
-        canal: 'WEB',
+        canal: 'APP',
         cantidadEstimada: undefined,
         unidadCantidad: '',
       });
@@ -69,17 +71,52 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
 
   const loadInitialData = async () => {
     try {
+      setLoading(true);
       const [clientsData, workTypesData] = await Promise.all([
-        fetchClients(),
-        fetchWorkTypes(true),
+        fetchClients().catch(err => {
+          console.error('Error loading clients:', err);
+          return [];
+        }),
+        fetchWorkTypes({ activeOnly: true }).catch(err => {
+          console.error('Error loading work types:', err);
+          return [];
+        }),
       ]);
       setClients(clientsData);
+      setFilteredClients(clientsData);
       setWorkTypes(workTypesData);
+      
+      if (clientsData.length === 0) {
+        console.warn('No hay clientes disponibles');
+      }
+      if (workTypesData.length === 0) {
+        console.warn('No hay tipos de trabajo disponibles');
+      }
     } catch (error) {
       console.error('Error loading initial data:', error);
-      alert('Error al cargar datos. Intente nuevamente.');
+      alert('Error al cargar datos. Verifique su conexión e intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Filtrar clientes por búsqueda
+  useEffect(() => {
+    if (!clientSearch.trim()) {
+      setFilteredClients(clients);
+      return;
+    }
+    const searchLower = clientSearch.toLowerCase();
+    const filtered = clients.filter(c => 
+      c.estado === 'ACTIVO' && (
+        (c.nombreCompleto || '').toLowerCase().includes(searchLower) ||
+        (c.razonSocial || '').toLowerCase().includes(searchLower) ||
+        (c.email || '').toLowerCase().includes(searchLower) ||
+        (c.documento || '').includes(searchLower)
+      )
+    );
+    setFilteredClients(filtered);
+  }, [clientSearch, clients]);
 
   const handleClientChange = async (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
@@ -130,6 +167,8 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
       const lat = e.detail.latLng.lat;
       const lng = e.detail.latLng.lng;
       setCustomLocation({ lat, lng });
+      // Actualizar también el formData si es necesario
+      console.log('📍 Ubicación seleccionada:', lat, lng);
     }
   };
 
@@ -144,9 +183,11 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
       await createWorkOrder(formData);
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating work order:', error);
-      alert('Error al crear la orden. Verifique los datos.');
+      // Mostrar mensaje específico del error
+      const errorMessage = error?.message || 'Error al crear la orden. Verifique los datos.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -172,6 +213,13 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Cliente <span className="text-red-500">*</span>
           </label>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, email o DNI..."
+            value={clientSearch}
+            onChange={(e) => setClientSearch(e.target.value)}
+            className="w-full mb-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+          />
           <select
             name="customerId"
             value={formData.customerId}
@@ -180,14 +228,18 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
             required
           >
             <option value="">Seleccionar cliente...</option>
-            {clients
-              .filter(c => c.estado === 'ACTIVO')
+            {filteredClients
+              .filter(client => client.userId) // Solo mostrar clientes con userId válido
               .map(client => (
                 <option key={client.id} value={client.userId}>
                   {client.nombreCompleto || client.razonSocial || client.email}
+                  {client.documento ? ` (${client.documento})` : ''}
                 </option>
               ))}
           </select>
+          {clientSearch && filteredClients.length === 0 && (
+            <p className="mt-1 text-xs text-gray-500">No se encontraron clientes</p>
+          )}
         </div>
 
         {/* Propiedad */}
@@ -320,10 +372,10 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
               onChange={handleChange}
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="WEB">Web</option>
+              <option value="APP">Portal / App</option>
               <option value="TELEFONO">Teléfono</option>
               <option value="WHATSAPP">WhatsApp</option>
-              <option value="APP">App</option>
+              <option value="OTRO">Otro</option>
             </select>
           </div>
         </div>
@@ -354,8 +406,15 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
                 center={customLocation}
                 zoom={14}
                 onMapClick={handleMapClick}
+                markers={[{
+                  id: 'selected-location',
+                  position: customLocation,
+                  title: 'Ubicación seleccionada',
+                  color: '#EF4444',
+                  type: 'ORDER' as any
+                }]}
               />
-              <div className="absolute top-2 left-2 bg-white px-2 py-1 rounded shadow text-xs font-bold">
+              <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded shadow text-xs font-semibold text-gray-800 border border-gray-200">
                 Click para ubicar: {customLocation.lat.toFixed(4)}, {customLocation.lng.toFixed(4)}
               </div>
             </div>
@@ -388,4 +447,3 @@ export function CreateWorkOrderModal({ isOpen, onClose, onSuccess }: CreateWorkO
     </Modal>
   );
 }
-

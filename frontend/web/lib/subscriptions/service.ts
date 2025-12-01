@@ -25,16 +25,21 @@ export interface UpdateSubscriptionStatusDto {
 /**
  * Obtener lista de suscripciones con filtros opcionales
  */
-export async function fetchSubscriptions(filters?: {
-  userId?: string;
-  status?: string;
-}): Promise<Subscription[]> {
+export async function fetchSubscriptions(
+  filters?: {
+    userId?: string;
+    status?: string;
+  },
+  options?: { admin?: boolean },
+): Promise<Subscription[]> {
+  const admin = options?.admin ?? false;
   const params = new URLSearchParams();
   if (filters?.userId) params.append('userId', filters.userId);
   if (filters?.status) params.append('status', filters.status);
   
   const query = params.toString() ? `?${params.toString()}` : '';
-  const result = await opsApi.get<Subscription[]>(`/subscriptions${query}`);
+  const endpoint = admin ? `/admin/subscriptions${query}` : `/subscriptions${query}`;
+  const result = await opsApi.get<Subscription[]>(endpoint);
   
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al cargar suscripciones');
@@ -49,7 +54,7 @@ export async function fetchSubscriptions(filters?: {
 export async function fetchSubscriptionById(id: string): Promise<Subscription> {
   // Nota: Verificar si existe endpoint GET /subscriptions/:id en backend
   // Por ahora usamos list y filtramos
-  const subscriptions = await fetchSubscriptions();
+  const subscriptions = await fetchSubscriptions(undefined, { admin: true });
   const subscription = subscriptions.find((s) => s.id === id);
   if (!subscription) {
     throw new Error('Suscripción no encontrada');
@@ -61,7 +66,7 @@ export async function fetchSubscriptionById(id: string): Promise<Subscription> {
  * Crear nueva suscripción
  */
 export async function createSubscription(data: CreateSubscriptionDto): Promise<Subscription> {
-  const result = await opsApi.post<Subscription>('/subscriptions', data);
+  const result = await opsApi.post<Subscription>('/admin/subscriptions', data);
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al crear suscripción');
   }
@@ -75,7 +80,7 @@ export async function updateSubscriptionStatus(
   id: string,
   data: UpdateSubscriptionStatusDto
 ): Promise<Subscription> {
-  const result = await opsApi.patch<Subscription>(`/subscriptions/${id}/status`, data);
+  const result = await opsApi.patch<Subscription>(`/admin/subscriptions/${id}/estado`, data);
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al actualizar estado de suscripción');
   }
@@ -90,25 +95,14 @@ export async function changeSubscriptionState(
   estado: string,
   observacion?: string
 ): Promise<Subscription> {
-  const result = await opsApi.patch<Subscription>(`/subscriptions/${id}/state`, {
-    estado,
-    observacion,
-  });
-  if (!result.success || !result.data) {
-    throw new Error(result.error || 'Error al cambiar estado de suscripción');
-  }
-  return result.data;
+  return updateSubscriptionStatus(id, { status: estado as SubscriptionStatus, reason: observacion });
 }
 
 /**
  * Cancelar suscripción
  */
 export async function cancelSubscription(id: string): Promise<Subscription> {
-  const result = await opsApi.patch<Subscription>(`/subscriptions/${id}/cancel`);
-  if (!result.success || !result.data) {
-    throw new Error(result.error || 'Error al cancelar suscripción');
-  }
-  return result.data;
+  return updateSubscriptionStatus(id, { status: 'CANCELED' });
 }
 
 /**
@@ -121,4 +115,3 @@ export async function upgradeSubscription(id: string, planId: string): Promise<S
   }
   return result.data;
 }
-

@@ -116,11 +116,35 @@ export async function assignAuditor(
 
 /**
  * Crea un cliente manualmente (para operadores)
+ * Mapea los campos del frontend al formato esperado por el backend
  */
 export async function createManualClient(data: CreateManualClientDto): Promise<Client> {
-  const result = await opsApi.post<Client>('/clients/manual', data);
+  // Mapear direccionFacturacion a address (el backend espera 'address')
+  const { direccionFacturacion, ...rest } = data;
+  const payload = {
+    ...rest,
+    address: direccionFacturacion, // El backend espera 'address', no 'direccionFacturacion'
+  };
+  
+  const result = await opsApi.post<Client>('/clients/manual', payload);
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Error al crear cliente manual');
+    // Extraer mensaje de error específico del backend
+    let errorMessage = 'Error al crear cliente manual';
+    if (result.error) {
+      // Si el error es un objeto con message (respuesta del backend)
+      if (typeof result.error === 'object' && result.error !== null) {
+        const errObj = result.error as any;
+        if (errObj.message) {
+          errorMessage = Array.isArray(errObj.message) 
+            ? errObj.message.join(', ') 
+            : String(errObj.message);
+        }
+      } else {
+        errorMessage = String(result.error);
+      }
+    }
+    console.error('[createManualClient] Error:', errorMessage, payload);
+    throw new Error(errorMessage);
   }
   return result.data;
 }

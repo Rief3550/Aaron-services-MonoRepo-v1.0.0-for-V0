@@ -61,7 +61,7 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
   return (
     <div className="flex h-screen">
       {/* Panel Izquierdo - Formulario */}
-      <div className="flex w-full flex-col items-center justify-center pb-32 bg-white px-4 py-12 lg:w-[35%] sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col items-center justify-center pb-32 bg-white px-4 py-12 lg:w-[35%] lg:pl-16 lg:pr-8 sm:px-6">
         <div className="w-full max-w-sm space-y-6">
           {/* Logo/Branding */}
           <div className="text-center space-y-2">
@@ -177,8 +177,8 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
       </div>
 
       {/* Panel Derecho - Imagen lateral con border radius */}
-      <div className="hidden lg:flex lg:w-[65%] items-center justify-center p-6 lg:p-10 bg-white">
-        <div className="relative w-full h-full rounded-[40px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+      <div className="hidden lg:flex lg:w-[65%] items-center justify-center p-6 bg-white">
+        <div className="relative w-[105%] h-[calc(100vh-3rem)] rounded-[40px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
           <Image
             src="/images/auth/login-side.jpg"
             alt="Aaron Services"
@@ -189,12 +189,14 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
           {/* Overlay para mejorar contraste de texto si es necesario */}
           <div className="absolute inset-0 bg-black/10" />
 
-          {/* Copyright */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 p-6 flex justify-center">
-            <div className="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-2 text-[10px] text-white/60 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full border border-white/5">
-              <p className="whitespace-nowrap font-medium">© 2025 Aaron Services. All rights reserved.</p>
-              <p className="text-center md:text-right max-w-lg leading-tight">
-                Unauthorized use or reproduction of any content or materials from this prohibited. For more information, visit our Terms of Service and Privacy Policy.
+          {/* Copyright Strip */}
+          <div className="absolute bottom-0 left-0 right-0 z-10">
+            <div className="mx-4 mb-4 rounded-2xl bg-[rgba(18,24,35,0.82)] border border-white/10 backdrop-blur px-6 py-3 flex flex-col sm:flex-row items-center justify-between text-[11px] leading-tight text-white/70 uppercase tracking-[0.08em]">
+              <p className="font-medium text-white/80">
+                © 2025 Aaron Services · todos los derechos reservados
+              </p>
+              <p className="text-white/60 font-semibold sm:mt-0 mt-2">
+                términos de servicio · política de privacidad
               </p>
             </div>
           </div>
@@ -203,5 +205,4 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
     </div>
   );
 }
-
 

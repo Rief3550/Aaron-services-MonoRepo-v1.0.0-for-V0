@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { toApiResponse } from '../common/api-response.util';
@@ -22,6 +23,7 @@ import { RolesService } from './roles.service';
 @Controller('roles')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
+@SkipThrottle()
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

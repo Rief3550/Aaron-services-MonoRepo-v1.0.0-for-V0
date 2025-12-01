@@ -41,11 +41,41 @@ export interface CreateWorkOrderRequestDto {
 /**
  * Crear una nueva orden de trabajo
  * Para ADMIN/OPERATOR: puede especificar customerId en el body
+ * Limpia campos opcionales vacíos antes de enviar (el backend rechaza strings vacíos)
  */
 export async function createWorkOrder(data: CreateWorkOrderRequestDto): Promise<WorkOrder> {
-  const result = await opsApi.post<WorkOrder>('/work-orders/request', data);
+  // Limpiar campos opcionales: no enviar si están vacíos (el backend rechaza strings vacíos como UUID inválido)
+  const payload: Partial<CreateWorkOrderRequestDto> = { ...data };
+  
+  // Remover campos opcionales vacíos
+  if (!payload.propertyId || payload.propertyId.trim() === '') {
+    delete payload.propertyId;
+  }
+  if (!payload.workTypeId || payload.workTypeId.trim() === '') {
+    delete payload.workTypeId;
+  }
+  if (!payload.unidadCantidad || payload.unidadCantidad.trim() === '') {
+    delete payload.unidadCantidad;
+  }
+  
+  const result = await opsApi.post<WorkOrder>('/work-orders/request', payload);
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Error al crear orden de trabajo');
+    // Extraer mensaje de error específico del backend
+    let errorMessage = 'Error al crear orden de trabajo';
+    if (result.error) {
+      if (typeof result.error === 'object' && result.error !== null) {
+        const errObj = result.error as any;
+        if (errObj.message) {
+          errorMessage = Array.isArray(errObj.message) 
+            ? errObj.message.join(', ') 
+            : String(errObj.message);
+        }
+      } else {
+        errorMessage = String(result.error);
+      }
+    }
+    console.error('[createWorkOrder] Error:', errorMessage, payload);
+    throw new Error(errorMessage);
   }
   return result.data;
 }
@@ -80,4 +110,5 @@ export async function fetchWorkOrders(filters?: {
   
   return Array.isArray(result.data) ? result.data : [result.data];
 }
+
 

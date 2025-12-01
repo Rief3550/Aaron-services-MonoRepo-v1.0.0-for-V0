@@ -32,7 +32,7 @@ export function WorkTypeList({ onEdit, onRefresh }: WorkTypeListProps) {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchWorkTypes();
+      const data = await fetchWorkTypes({ admin: true });
       setWorkTypes(data);
       onRefresh?.();
     } catch (err) {
@@ -180,4 +180,3 @@ export function WorkTypeList({ onEdit, onRefresh }: WorkTypeListProps) {
     </div>
   );
 }
-

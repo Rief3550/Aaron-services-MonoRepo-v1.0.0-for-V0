@@ -80,8 +80,8 @@ export default function PlanesPage() {
       try {
         // Cargar planes y work-types en paralelo
         const [plansData, workTypesData] = await Promise.all([
-          fetchPlans(true), // Solo planes activos
-          fetchWorkTypes(true), // Solo tipos de trabajo activos
+          fetchPlans({ activeOnly: true }), // Solo planes activos
+          fetchWorkTypes({ activeOnly: true }), // Solo tipos de trabajo activos
         ]);
         
         // Mapear planes a SubscriptionPlan

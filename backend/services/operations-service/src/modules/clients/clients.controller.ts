@@ -67,7 +67,12 @@ export class ClientsController {
     @Body() dto: CreateClientManualDto,
     @CurrentUser() user: { userId: string },
   ) {
-    return this.clientsService.createManual(dto, user.userId);
+    try {
+      return await this.clientsService.createManual(dto, user.userId);
+    } catch (error) {
+      console.error('[ClientsController] Error creating manual client:', error);
+      throw error; // Re-throw para que NestJS lo maneje con el exception filter
+    }
   }
 
   /**

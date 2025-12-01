@@ -69,7 +69,7 @@ export function Modal({
 
         {/* Contenido del modal */}
         <div
-          className={`inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle ${sizeClasses[size]} w-full`}
+          className={`inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle ${sizeClasses[size]} w-full relative z-10`}
         >
           {/* Header opcional */}
           {(title || showCloseButton) && (
@@ -94,10 +94,11 @@ export function Modal({
           )}
 
           {/* Contenido */}
-          <div className="bg-white">{children}</div>
+          <div className="bg-white relative z-10">{children}</div>
         </div>
       </div>
     </div>
   );
 }
+
 

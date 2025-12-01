@@ -16,10 +16,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { toApiResponse } from '../common/api-response.util';
 
+import { SkipThrottle } from '@nestjs/throttler';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
+@SkipThrottle()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

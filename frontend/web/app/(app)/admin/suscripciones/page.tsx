@@ -56,7 +56,7 @@ export default function AdminSubscriptionsPage() {
 
     const loadStats = async () => {
         try {
-            const subscriptions = await fetchSubscriptions();
+            const subscriptions = await fetchSubscriptions(undefined, { admin: true });
             const stats: Record<SubscriptionState, number> = {
                 ACTIVE: subscriptions.filter(s => s.status === 'ACTIVE').length,
                 PAST_DUE: subscriptions.filter(s => s.status === 'PAST_DUE').length,

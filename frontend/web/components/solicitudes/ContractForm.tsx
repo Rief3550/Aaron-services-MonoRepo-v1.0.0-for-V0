@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 
 interface ContractFormProps {
   data: any;
@@ -8,12 +9,20 @@ interface ContractFormProps {
 
 export const ContractForm: React.FC<ContractFormProps> = ({ data, onChange, readOnly = false }) => {
   return (
-    <div className="bg-white p-8 border border-gray-300 shadow-sm max-w-4xl mx-auto text-sm leading-relaxed text-gray-800 font-serif overflow-y-auto max-h-[calc(90vh-200px)]">
+    <div className="bg-white p-8 border border-gray-300 shadow-sm max-w-4xl mx-auto text-sm leading-relaxed text-gray-800 font-serif overflow-y-auto max-h-[calc(90vh-180px)] rounded-2xl">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-wider mb-2">AARON</h1>
-        <p className="text-xs text-gray-500 tracking-[0.3em] uppercase">Servicios</p>
-        <h2 className="text-xl font-bold mt-6 uppercase border-b-2 border-gray-900 inline-block pb-1">
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/images/brand/logo-negro.png"
+            alt="Aaron Servicios"
+            width={180}
+            height={60}
+            className="object-contain"
+            priority
+          />
+        </div>
+        <h2 className="text-xl font-bold mt-4 uppercase border-b-2 border-gray-900 inline-block pb-1 tracking-[0.2em]">
           Contrato de Locación de Servicios
         </h2>
       </div>

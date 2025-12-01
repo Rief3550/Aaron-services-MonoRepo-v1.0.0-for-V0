@@ -54,7 +54,7 @@ export function PlanForm({ plan, onSuccess, onCancel }: PlanFormProps) {
   const loadPlanData = async () => {
     if (!plan?.id) return;
     try {
-      const planData = await fetchPlanById(plan.id);
+      const planData = await fetchPlanById(plan.id, { admin: true });
       setFormData({
         name: planData.name || '',
         description: planData.description || '',
@@ -281,4 +281,3 @@ export function PlanForm({ plan, onSuccess, onCancel }: PlanFormProps) {
     </form>
   );
 }
-

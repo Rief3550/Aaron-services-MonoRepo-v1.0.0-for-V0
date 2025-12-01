@@ -47,7 +47,7 @@ import { mockAllMarkers } from '@/lib/data/mock-map-data';
 
 ```env
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=tu_api_key
-NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=9c96b18e81ab1990f6c5f091
+NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=9c96b18e81ab19904121ac45
 ```
 
 ### Obtener API Key
@@ -64,5 +64,4 @@ NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=9c96b18e81ab1990f6c5f091
 - [ ] Implementar filtros para mostrar/ocultar tipos de marcadores
 - [ ] Agregar actualización en tiempo real de posiciones de operarios
 - [ ] Agregar clustering cuando hay muchos marcadores cercanos
-
 

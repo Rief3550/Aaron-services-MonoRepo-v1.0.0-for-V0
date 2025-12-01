@@ -67,7 +67,7 @@ export function SubscriptionForm({ subscription, onSuccess, onCancel }: Subscrip
 
   const loadPlans = async () => {
     try {
-      const plansData = await fetchPlans(true); // Solo planes activos
+      const plansData = await fetchPlans({ activeOnly: true }); // Solo planes activos
       setPlans(plansData);
     } catch (err) {
       console.error('Error loading plans:', err);
@@ -324,4 +324,3 @@ export function SubscriptionForm({ subscription, onSuccess, onCancel }: Subscrip
     </form>
   );
 }
-

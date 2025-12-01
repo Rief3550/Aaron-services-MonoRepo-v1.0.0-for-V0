@@ -3,6 +3,8 @@
  * Infrastructure layer - Cliente HTTP genérico para comunicarse con los microservicios
  */
 
+import { authService } from '../auth/auth.service';
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -15,6 +17,36 @@ export interface ApiResponse<T> {
  * Permite desacoplar el cliente de la implementación específica de auth
  */
 export type TokenGetter = () => string | null;
+
+let refreshPromise: Promise<string | null> | null = null;
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  if (typeof window === 'undefined') return null;
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const tokens = await authService.refreshToken(refreshToken);
+        if (tokens?.accessToken) {
+          localStorage.setItem('accessToken', tokens.accessToken);
+          localStorage.setItem('refreshToken', tokens.refreshToken);
+          return tokens.accessToken;
+        }
+      } catch (error) {
+        console.error('[ApiClient] Error refreshing token:', error);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } finally {
+        refreshPromise = null;
+      }
+      return null;
+    })();
+  }
+
+  return refreshPromise;
+};
 
 export class ApiClient {
   private readonly baseURL: string;
@@ -60,7 +92,15 @@ export class ApiClient {
       headers,
     };
 
-    const response = await fetch(url, config);
+    let response = await fetch(url, config);
+
+    if (response.status === 401 && typeof window !== 'undefined') {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+        response = await fetch(url, { ...config, headers });
+      }
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
@@ -73,7 +113,11 @@ export class ApiClient {
       }
       // Si retorna { message: "..." }
       if (errorData.message) {
-        throw new Error(errorData.message);
+        const nestedMessage =
+          typeof errorData.message === 'string'
+            ? errorData.message
+            : errorData.message?.message || JSON.stringify(errorData.message);
+        throw new Error(nestedMessage);
       }
       // Fallback genérico
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -168,4 +212,3 @@ export class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 }
-

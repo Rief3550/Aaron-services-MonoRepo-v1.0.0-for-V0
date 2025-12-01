@@ -39,8 +39,14 @@ export interface UpdateWorkTypeDto {
  * Obtener lista de tipos de trabajo activos
  * El endpoint /work-types solo devuelve tipos activos con campos limitados
  */
-export async function fetchWorkTypes(activeOnly: boolean = true): Promise<WorkType[]> {
-  const result = await opsApi.get<WorkType[]>('/work-types');
+export async function fetchWorkTypes(options?: { activeOnly?: boolean; admin?: boolean }): Promise<WorkType[]> {
+  const activeOnly = options?.activeOnly ?? true;
+  const admin = options?.admin ?? false;
+
+  const basePath = admin ? '/admin/work-types' : '/work-types';
+  const path = admin ? basePath : basePath + (activeOnly ? '' : '?includeInactive=true');
+
+  const result = await opsApi.get<WorkType[]>(path);
   
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Error al cargar tipos de trabajo');
@@ -51,7 +57,7 @@ export async function fetchWorkTypes(activeOnly: boolean = true): Promise<WorkTy
   // El endpoint ya devuelve solo activos, pero marcamos activo=true para consistencia
   return workTypes.map(wt => ({
     ...wt,
-    activo: true, // El endpoint solo devuelve activos
+    activo: admin ? wt.activo : true,
   }));
 }
 

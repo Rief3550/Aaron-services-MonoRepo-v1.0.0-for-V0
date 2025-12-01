@@ -71,6 +71,7 @@ export class WorkOrdersService {
               nombreCompleto: true,
               razonSocial: true,
               tipoPersona: true,
+              email: true,
             },
           },
           crew: {
@@ -610,6 +611,7 @@ export class WorkOrdersService {
     userRole?: string // Para determinar si es CUSTOMER o ADMIN/OPERATOR
   ): Promise<Result<Error, unknown>> {
     try {
+      // userId aquí es el customerId (userId del cliente para el cual se crea la orden)
       // Buscar el client y verificar que esté ACTIVO
       const client = await prisma.client.findUnique({
         where: { userId },
@@ -628,7 +630,8 @@ export class WorkOrdersService {
       });
 
       if (!client) {
-        return Result.error(new Error('Client not found'));
+        logger.error(`Client not found for userId: ${userId}`);
+        return Result.error(new Error(`Client not found. Please verify the client exists and is active.`));
       }
 
       if (client.estado !== 'ACTIVO') {

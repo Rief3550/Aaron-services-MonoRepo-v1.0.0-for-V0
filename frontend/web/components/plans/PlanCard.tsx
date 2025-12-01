@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { SubscriptionPlan } from '@/lib/mock-data';
 
 interface PlanCardProps {
@@ -30,12 +31,16 @@ export const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick }) => {
         {/* Logo Section */}
         <div className="relative z-10 mb-6">
           <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wider font-semibold opacity-90">
-              Aaron Servicios
+            <div className="flex items-center gap-3">
+              <Image
+                src="/images/brand/Logo-completo-white.png"
+                alt="Aaron Servicios"
+                width={140}
+                height={40}
+                className="object-contain drop-shadow-lg"
+                priority
+              />
             </div>
-            <svg className="w-10 h-10 opacity-80" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.86-.96-7-5.29-7-9V8.3l7-3.11 7 3.11V11c0 3.71-3.14 8.04-7 9z"/>
-            </svg>
           </div>
         </div>
 

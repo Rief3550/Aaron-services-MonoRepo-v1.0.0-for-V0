@@ -88,9 +88,39 @@ class AuthService implements IAuthService {
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
-    // This method is likely not needed anymore as cookies handle refresh
-    // But keeping it for interface compatibility, returning empty tokens
-    return { accessToken: '', refreshToken: '' };
+    if (!refreshToken) {
+      throw new Error('Refresh token no disponible');
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3100/auth';
+    const url = `${baseUrl.replace(/\/$/, '')}/refresh`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const message =
+        result?.error || result?.message || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(message);
+    }
+
+    if (result?.success && result.data?.accessToken) {
+      return result.data;
+    }
+
+    if (result?.accessToken) {
+      return result as AuthTokens;
+    }
+
+    throw new Error('No se pudo refrescar el token de acceso');
   }
 
   async getCurrentUser(): Promise<User | null> {
@@ -140,4 +170,3 @@ class AuthService implements IAuthService {
 }
 
 export const authService = new AuthService();
-

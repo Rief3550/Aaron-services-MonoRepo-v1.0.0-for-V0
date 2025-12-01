@@ -162,50 +162,46 @@ export default function DashboardPage() {
       </section>
 
       {/* Layout Grid: Estados (Matriz) y Gráfico */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Columna Izquierda: Matriz de Estados */}
-        <section className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Estado de Órdenes</h3>
-          <div className="grid grid-cols-6 gap-3">
-            {/* Fila 1: 2 elementos */}
-            <BudgetCard 
-              state="PENDIENTE" 
-              count={orderStats.PENDIENTE} 
-              onClick={() => router.push('/ordenes?state=PENDIENTE')} 
-              className="col-span-3 hover:shadow-md transition-shadow !p-3"
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <section className="bg-white rounded-3xl shadow-[0_20px_40px_rgba(38,57,77,0.08)] border border-[#F2F4F7] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-semibold text-[#1F2C3D]">Estado de Órdenes</h3>
+            <span className="text-sm font-medium text-[#98B0C8]">Actualizado en tiempo real</span>
+          </div>
+          <BudgetCard
+            state="PENDIENTE"
+            count={orderStats.PENDIENTE}
+            onClick={() => router.push('/ordenes?state=PENDIENTE')}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 mt-4">
+            <BudgetCard
+              state="ASIGNADA"
+              count={orderStats.ASIGNADA}
+              onClick={() => router.push('/ordenes?state=ASIGNADA')}
             />
-            <BudgetCard 
-              state="ASIGNADA" 
-              count={orderStats.ASIGNADA} 
-              onClick={() => router.push('/ordenes?state=ASIGNADA')} 
-              className="col-span-3 hover:shadow-md transition-shadow !p-3"
+            <BudgetCard
+              state="EN_PROGRESO"
+              count={orderStats.EN_PROGRESO}
+              onClick={() => router.push('/ordenes?state=EN_PROGRESO')}
             />
-            {/* Fila 2: 3 elementos */}
-            <BudgetCard 
-              state="EN_PROGRESO" 
-              count={orderStats.EN_PROGRESO} 
-              onClick={() => router.push('/ordenes?state=EN_PROGRESO')} 
-              className="col-span-2 hover:shadow-md transition-shadow !p-3"
+            <BudgetCard
+              state="FINALIZADA"
+              count={orderStats.FINALIZADA}
+              onClick={() => router.push('/ordenes?state=FINALIZADA')}
             />
-            <BudgetCard 
-              state="FINALIZADA" 
-              count={orderStats.FINALIZADA} 
-              onClick={() => router.push('/ordenes?state=FINALIZADA')} 
-              className="col-span-2 hover:shadow-md transition-shadow !p-3"
-            />
-            <BudgetCard 
-              state="CANCELADA" 
-              count={orderStats.CANCELADA} 
-              onClick={() => router.push('/ordenes?state=CANCELADA')} 
-              className="col-span-2 hover:shadow-md transition-shadow !p-3"
+            <BudgetCard
+              state="CANCELADA"
+              count={orderStats.CANCELADA}
+              onClick={() => router.push('/ordenes?state=CANCELADA')}
             />
           </div>
         </section>
 
-        {/* Columna Derecha: Gráfico */}
-        <section className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center">
-          {/* Título eliminado según imagen */}
-          <div className="w-full h-[280px]"> {/* Altura ajustada */}
+        <section className="bg-white rounded-3xl shadow-[0_20px_40px_rgba(38,57,77,0.08)] border border-[#F2F4F7] p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-semibold text-[#1F2C3D]">Evolución semanal</h3>
+          </div>
+          <div className="w-full h-[320px]">
             <OrdersStatusChart />
           </div>
         </section>

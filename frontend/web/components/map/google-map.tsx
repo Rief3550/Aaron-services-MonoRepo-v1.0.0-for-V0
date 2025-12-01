@@ -35,12 +35,21 @@ export function GoogleMap({
 }: GoogleMapProps) {
   // API Key y Map ID desde variables de entorno o fallback directo
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCxDpBudd3WuLMHmNpUbFeDdExXZuKOaJY';
-  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '7bcc2d14e02b6d88e92b9966';
+  
+  // Map ID: usar directamente el ID del estilo personalizado "Mapa Delivery v0 dev"
+  // Este ID corresponde al estilo oscuro publicado en Google Cloud
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || '9c96b18e81ab19904121ac45';
 
-  // Debug: Verificar que el Map ID se está cargando correctamente
+  // Debug: Verificar configuración del mapa
   if (typeof window !== 'undefined') {
-    console.log('🗺️ Google Maps - Map ID:', mapId);
-    console.log('🗺️ Google Maps - API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO CONFIGURADA');
+    console.log('🗺️ Google Maps Config:');
+    console.log('   Map ID (estilo oscuro):', mapId);
+    console.log('   API Key:', apiKey ? `${apiKey.substring(0, 15)}...` : 'NO CONFIGURADA');
+    console.log('   ⚠️ Si el mapa no muestra el estilo, verificar en Google Cloud Console:');
+    console.log('   1. El Map Style "Mapa Delivery v0 dev" debe estar PUBLICADO');
+    console.log('   2. El Map ID', mapId, 'debe estar asociado a ese estilo');
+    console.log('   3. La API Key debe tener habilitada la Maps JavaScript API');
+    console.log('   4. Verificar que el mapa no tenga restricciones por dominio/IP');
   }
 
   if (!apiKey) {

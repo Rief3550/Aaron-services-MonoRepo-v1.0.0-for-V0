@@ -101,6 +101,11 @@ export class UpdateWorkOrderCompletionDto {
  * Funciona tanto para app móvil como para web del sistema
  */
 export class CreateWorkOrderRequestDto {
+  // Permite que ADMIN/OPERATOR especifiquen para qué cliente se crea la orden
+  @IsOptional()
+  @IsUUID()
+  customerId?: string;
+
   // Propiedad donde se realizará el trabajo
   @IsOptional()
   @IsUUID()

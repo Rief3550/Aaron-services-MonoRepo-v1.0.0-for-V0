@@ -21,7 +21,7 @@ import { UsersModule } from './modules/users/users.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
+        limit: 2000, // aumentar drásticamente para panel admin
       },
     ]),
     // Application modules
@@ -40,4 +40,3 @@ import { UsersModule } from './modules/users/users.module';
   ],
 })
 export class AppModule {}
-

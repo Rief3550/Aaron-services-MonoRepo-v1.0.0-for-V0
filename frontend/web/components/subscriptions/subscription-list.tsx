@@ -34,7 +34,7 @@ export function SubscriptionList({ onEdit, onRefresh, filters }: SubscriptionLis
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchSubscriptions(filters);
+      const data = await fetchSubscriptions(filters, { admin: true });
       setSubscriptions(data);
       onRefresh?.();
     } catch (err) {
@@ -214,4 +214,3 @@ export function SubscriptionList({ onEdit, onRefresh, filters }: SubscriptionLis
     </div>
   );
 }
-

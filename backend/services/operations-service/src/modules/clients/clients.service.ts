@@ -78,35 +78,42 @@ export class ClientsService {
 
     // Crear todo en una transacción
     const result = await prisma.$transaction(async (tx) => {
-      // 0. Crear Usuario en Auth
+      // 0. Crear Usuario en Auth usando raw queries para acceder al schema auth
       // Buscar rol CUSTOMER
-      // Nota: 'role' y 'user' existen en el cliente de prisma gracias a la integración de schemas
-      const role = await (tx as any).role.findUnique({ where: { name: 'CUSTOMER' } });
-      if (!role) {
+      const roleResult = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+        SELECT id, name FROM auth.roles WHERE name = 'CUSTOMER' LIMIT 1
+      `;
+      
+      if (!roleResult || roleResult.length === 0) {
          throw new ConflictException('Rol CUSTOMER no encontrado en el sistema. Contacte a soporte.');
       }
+      
+      const role = roleResult[0];
 
       // Hashear password
       const password = dto.password || 'Aaron123!';
       const passwordHash = await bcrypt.hash(password, 10);
 
       // Crear usuario
-      const user = await (tx as any).user.create({
-        data: {
-          email: dto.email,
-          passwordHash,
-          fullName: dto.fullName,
-          isEmailVerified: true,
-          active: true,
-          phone: dto.telefono,
-          roles: {
-             connect: { id: role.id }
-          }
-        }
-      });
-
-      const userId = user.id;
+      const userResult = await tx.$queryRaw<Array<{ id: string; email: string; fullName: string | null }>>`
+        INSERT INTO auth.users (id, email, "passwordHash", "fullName", "isEmailVerified", active, phone, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), ${dto.email}, ${passwordHash}, ${dto.fullName}, true, true, ${dto.telefono || null}, NOW(), NOW())
+        RETURNING id, email, "fullName"
+      `;
       
+      if (!userResult || userResult.length === 0) {
+        throw new ConflictException('Error al crear usuario en el sistema de autenticación.');
+      }
+      
+      const userId = userResult[0].id;
+      
+      // Conectar el rol al usuario
+      await tx.$executeRaw`
+        INSERT INTO auth."_UserRoles" ("A", "B")
+        VALUES (${role.id}, ${userId})
+        ON CONFLICT DO NOTHING
+      `;
+
       // 1. Crear el cliente directamente ACTIVO
       const client = await tx.client.create({
         data: {
@@ -115,7 +122,7 @@ export class ClientsService {
           nombreCompleto: dto.fullName,
           telefono: dto.telefono,
           documento: dto.documento,
-          direccionFacturacion: dto.direccionFacturacion,
+          direccionFacturacion: dto.direccionFacturacion || dto.address, // Usar address si direccionFacturacion no está
           lat: dto.lat,
           lng: dto.lng,
           ciudad: dto.ciudad,
@@ -480,4 +487,3 @@ export class ClientsService {
     return updatedClient;
   }
 }
-

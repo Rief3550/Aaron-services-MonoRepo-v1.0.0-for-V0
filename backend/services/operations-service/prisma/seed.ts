@@ -10,63 +10,76 @@ import { PrismaClient } from '@aaron/prisma-client-ops';
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  console.log('✅ Seed completado - No se crean datos de prueba');
-  console.log('💡 Para crear datos de prueba, descomenta el código en seed.ts');
-  
-  // ============================================
-  // SEED DE PRUEBA COMENTADO - Usar solo datos reales
-  // ============================================
-  /*
-  console.log('🌱 Seeding test crew...');
+  console.log('🌱 Seeding tipos de trabajo básicos...');
 
-  // Buscar si ya existe una cuadrilla con este nombre
-  const existingCrew = await prisma.crew.findFirst({
-    where: { name: 'Cuadrilla Norte' },
-  });
+  const defaultWorkTypes: Array<{
+    nombre: string;
+    descripcion: string;
+    costoBase: string;
+    unidad: string;
+  }> = [
+    {
+      nombre: 'Plomería',
+      descripcion: 'Reparaciones de pérdidas de agua, cañerías y sanitarios.',
+      costoBase: '15000',
+      unidad: 'visita',
+    },
+    {
+      nombre: 'Electricidad',
+      descripcion: 'Instalaciones eléctricas, tableros, tomacorrientes y luminarias.',
+      costoBase: '18000',
+      unidad: 'visita',
+    },
+    {
+      nombre: 'Gas',
+      descripcion: 'Reparación y mantenimiento de instalaciones de gas.',
+      costoBase: '20000',
+      unidad: 'visita',
+    },
+    {
+      nombre: 'Pintura',
+      descripcion: 'Pintura interior y exterior, retoques y revestimientos.',
+      costoBase: '22000',
+      unidad: 'm2',
+    },
+    {
+      nombre: 'Mampostería',
+      descripcion: 'Construcción y reparación de paredes, revoques y revestimientos.',
+      costoBase: '25000',
+      unidad: 'm2',
+    },
+  ];
 
-  let testCrew;
-  if (existingCrew) {
-    // Actualizar la cuadrilla existente
-    testCrew = await prisma.crew.update({
-      where: { id: existingCrew.id },
-      data: {
-        zona: 'Zona Norte - La Rioja',
-        members: ['user-1', 'user-2', 'user-3'], // IDs de ejemplo
-        availability: 'AVAILABLE',
-        state: 'desocupado',
-        progress: 0,
-        notes: 'Cuadrilla de prueba para desarrollo',
-        lat: -29.3950,
-        lng: -66.8450,
-        lastLocationAt: new Date(),
-      },
+  for (const workType of defaultWorkTypes) {
+    const existing = await prisma.workType.findFirst({
+      where: { nombre: workType.nombre },
     });
-    console.log(`✅ Test crew updated: ${testCrew.name}`);
-  } else {
-    // Crear nueva cuadrilla
-    testCrew = await prisma.crew.create({
-      data: {
-        name: 'Cuadrilla Norte',
-        zona: 'Zona Norte - La Rioja',
-        members: ['user-1', 'user-2', 'user-3'], // IDs de ejemplo
-        availability: 'AVAILABLE',
-        state: 'desocupado',
-        progress: 0,
-        notes: 'Cuadrilla de prueba para desarrollo',
-        lat: -29.3950,
-        lng: -66.8450,
-        lastLocationAt: new Date(),
-      },
-    });
-    console.log(`✅ Test crew created: ${testCrew.name}`);
+
+    if (existing) {
+      await prisma.workType.update({
+        where: { id: existing.id },
+        data: {
+          descripcion: workType.descripcion,
+          costoBase: workType.costoBase,
+          unidad: workType.unidad,
+          activo: true,
+        },
+      });
+      console.log(`✅ Tipo actualizado: ${workType.nombre}`);
+    } else {
+      await prisma.workType.create({
+        data: {
+          nombre: workType.nombre,
+          descripcion: workType.descripcion,
+          costoBase: workType.costoBase,
+          unidad: workType.unidad,
+        },
+      });
+      console.log(`✅ Tipo creado: ${workType.nombre}`);
+    }
   }
 
-  console.log(`   📍 Zona: ${testCrew.zona}`);
-  console.log(`   👥 Miembros: ${Array.isArray(testCrew.members) ? testCrew.members.length : 0}`);
-  console.log(`   🆔 ID: ${testCrew.id}`);
-  console.log(`   📊 Estado: ${testCrew.state}`);
-  console.log(`   🔄 Disponibilidad: ${testCrew.availability}`);
-  */
+  console.log('✅ Seed completado');
 }
 
 main()
@@ -77,4 +90,3 @@ main()
   .finally(() => {
     void prisma.$disconnect();
   });
-

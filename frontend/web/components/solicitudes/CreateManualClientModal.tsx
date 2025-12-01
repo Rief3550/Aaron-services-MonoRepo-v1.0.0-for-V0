@@ -25,7 +25,7 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
     lat: -29.4131, // Default La Rioja
     lng: -66.8558,
     tipoPropiedad: 'CASA',
-    tipoConstruccion: 'TRADICIONAL',
+    tipoConstruccion: 'LOSA',
     ambientes: 1,
     banos: 1,
     superficieCubiertaM2: 0,
@@ -37,12 +37,29 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
     observaciones: '',
     observacionesPropiedad: ''
   });
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      fetchPlans(true).then(setPlans).catch(console.error);
+      // Cargar planes al abrir el modal
+      const loadPlans = async () => {
+        try {
+          setLoading(true);
+          const plansData = await fetchPlans({ activeOnly: true });
+          setPlans(plansData);
+          if (plansData.length === 0) {
+            alert('No hay planes disponibles. Por favor, cree planes primero en la sección de administración.');
+          }
+        } catch (error) {
+          console.error('Error loading plans:', error);
+          alert('Error al cargar planes. Por favor, intente nuevamente.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadPlans();
       setStep(1);
-      setLoading(false);
+      setSelectedLocation(null); // Reset ubicación seleccionada
     }
   }, [isOpen]);
 
@@ -62,6 +79,7 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
       const lat = e.detail.latLng.lat;
       const lng = e.detail.latLng.lng;
       setFormData(prev => ({ ...prev, lat, lng }));
+      setSelectedLocation({ lat, lng });
     }
   };
 
@@ -71,9 +89,11 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
       await createManualClient(formData);
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client:', error);
-      alert('Error al crear el cliente. Verifique los datos.');
+      // Mostrar mensaje específico del error
+      const errorMessage = error?.message || 'Error al crear el cliente. Verifique los datos.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -82,8 +102,11 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
 
+  // Validación de email
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  
   // Validaciones básicas para habilitar "Siguiente"
-  const isStep1Valid = formData.fullName && formData.email && formData.telefono && formData.documento && formData.password && formData.password.length >= 6;
+  const isStep1Valid = formData.fullName && formData.email && isValidEmail(formData.email) && formData.telefono && formData.documento && formData.password && formData.password.length >= 6;
   const isStep2Valid = formData.direccionFacturacion && formData.lat && formData.lng && formData.barrio;
   const isStep3Valid = formData.planId;
 
@@ -117,7 +140,10 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input type="email" name="email" value={formData.email} onChange={handleChange} className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+              <input type="email" name="email" value={formData.email} onChange={handleChange} className={`mt-1 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 ${formData.email && !isValidEmail(formData.email) ? 'border-red-500' : 'border-gray-300'}`} placeholder="ejemplo@email.com" />
+              {formData.email && !isValidEmail(formData.email) && (
+                <p className="mt-1 text-xs text-red-600">Ingrese un email válido</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Contraseña</label>
@@ -158,8 +184,15 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
                  center={{ lat: formData.lat, lng: formData.lng }}
                  zoom={14}
                  onMapClick={handleMapClick}
+                 markers={selectedLocation ? [{
+                   id: 'selected-location',
+                   position: selectedLocation,
+                   title: 'Ubicación seleccionada',
+                   color: '#EF4444',
+                   type: 'ORDER' as any
+                 }] : []}
                />
-               <div className="absolute top-2 left-2 bg-white px-2 py-1 rounded shadow text-xs font-bold">
+               <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded shadow text-xs font-semibold text-gray-800 border border-gray-200">
                   Click para ubicar: {formData.lat.toFixed(4)}, {formData.lng.toFixed(4)}
                </div>
             </div>
@@ -167,18 +200,32 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Tipo</label>
-                <select name="tipoPropiedad" value={formData.tipoPropiedad} onChange={handleChange} className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <select
+                  name="tipoPropiedad"
+                  value={formData.tipoPropiedad}
+                  onChange={handleChange}
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
                   <option value="CASA">Casa</option>
                   <option value="DEPARTAMENTO">Departamento</option>
-                  <option value="COMERCIO">Comercio</option>
-                  <option value="LOTE_BALDIO">Lote Baldío</option>
+                  <option value="PH">PH</option>
+                  <option value="COUNTRY">Country / Barrio cerrado</option>
+                  <option value="LOCAL">Local comercial</option>
+                  <option value="OTRO">Otro</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Construcción</label>
-                <select name="tipoConstruccion" value={formData.tipoConstruccion} onChange={handleChange} className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                  <option value="TRADICIONAL">Tradicional</option>
-                  <option value="PREFABRICADA">Prefabricada</option>
+                <select
+                  name="tipoConstruccion"
+                  value={formData.tipoConstruccion}
+                  onChange={handleChange}
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                >
+                  <option value="LOSA">Losa / Tradicional</option>
+                  <option value="CHAPA">Chapa</option>
+                  <option value="MIXTO">Mixto</option>
+                  <option value="OTRO">Otro</option>
                 </select>
               </div>
               <div>
@@ -205,8 +252,19 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
         {step === 3 && (
           <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-700">Seleccionar Plan</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {plans.map(plan => (
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Cargando planes...</span>
+              </div>
+            ) : plans.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No hay planes disponibles.</p>
+                <p className="text-sm mt-2">Por favor, cree planes en la sección de administración.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plans.map(plan => (
                 <div 
                   key={plan.id}
                   onClick={() => setFormData(prev => ({ ...prev, planId: plan.id }))}
@@ -214,19 +272,20 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
                 >
                   <div className="font-bold text-gray-900">{plan.name}</div>
                   <div className="text-sm text-gray-500">{plan.description}</div>
-                  <div className="mt-2 font-semibold text-blue-600">${plan.price} {plan.currency}</div>
+                  <div className="mt-2 font-semibold text-blue-600">${plan.price} {plan.currency}                  </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
 
             {formData.planId && (
                <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-                  <h4 className="font-medium text-gray-900 mb-2">Resumen</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                     <li><strong>Cliente:</strong> {formData.fullName} ({formData.email})</li>
-                     <li><strong>Propiedad:</strong> {formData.direccionFacturacion}, {formData.barrio}</li>
-                     <li><strong>Tipo:</strong> {formData.tipoPropiedad}</li>
-                     <li><strong>Plan:</strong> {plans.find(p => p.id === formData.planId)?.name}</li>
+                  <h4 className="font-semibold text-gray-900 mb-2">Resumen</h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                     <li><strong className="text-gray-800">Cliente:</strong> <span className="text-gray-700">{formData.fullName} ({formData.email})</span></li>
+                     <li><strong className="text-gray-800">Propiedad:</strong> <span className="text-gray-700">{formData.direccionFacturacion}, {formData.barrio}</span></li>
+                     <li><strong className="text-gray-800">Tipo:</strong> <span className="text-gray-700">{formData.tipoPropiedad}</span></li>
+                     <li><strong className="text-gray-800">Plan:</strong> <span className="text-gray-700">{plans.find(p => p.id === formData.planId)?.name}</span></li>
                   </ul>
                </div>
             )}
@@ -264,4 +323,3 @@ export function CreateManualClientModal({ isOpen, onClose, onSuccess }: CreateMa
     </Modal>
   );
 }
-

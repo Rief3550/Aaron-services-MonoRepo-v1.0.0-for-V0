@@ -34,3 +34,4 @@ outputPaths.forEach(outputPath => {
 console.log('\n📊 Tamaño del Base64:', logoBase64.length, 'caracteres');
 console.log('🎨 Primeros 100 caracteres:', logoBase64.substring(0, 100) + '...');
 
+

@@ -18,7 +18,7 @@ interface WorkOrder {
   crew?: { name: string };
   prioridad?: string;
   workType?: { nombre: string };
-  client?: { nombre: string };
+  client?: { nombreCompleto?: string; razonSocial?: string; email?: string };
 }
 
 export default function OrdenesPage() {
@@ -150,6 +150,21 @@ export default function OrdenesPage() {
             {order.serviceCategory}
         </Link>
       )
+    },
+    {
+      key: 'client',
+      label: 'Cliente',
+      sortable: true,
+      render: (order) => (
+        <div>
+          <p className="font-medium text-gray-900">
+            {order.client?.nombreCompleto || order.client?.razonSocial || 'Sin cliente'}
+          </p>
+          {order.client?.email && (
+            <p className="text-xs text-gray-500">{order.client.email}</p>
+          )}
+        </div>
+      ),
     },
     {
       key: 'address',
