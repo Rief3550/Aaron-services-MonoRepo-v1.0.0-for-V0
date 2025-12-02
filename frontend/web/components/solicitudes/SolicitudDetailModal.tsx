@@ -2,27 +2,93 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { ContractForm } from './ContractForm';
 import { opsApi } from '@/lib/api/services';
+import type { Client } from '@/lib/clients/api';
+import type { Plan } from '@/lib/plans/types';
+import type { Subscription } from '@/lib/subscriptions/types';
 
 type Tab = 'general' | 'auditoria' | 'contrato';
+
+interface Property {
+  id: string;
+  tipoPropiedad?: string;
+  tipoConstruccion?: string;
+  metrosCuadrados?: number;
+  cantidadBanos?: number;
+  address?: string;
+  ciudad?: string;
+  provincia?: string;
+  barrio?: string;
+  ambientes?: string | number;
+  banos?: string | number;
+  superficieCubiertaM2?: string | number;
+  superficieDescubiertaM2?: string | number;
+  summary?: string;
+  lat?: string | number;
+  lng?: string | number;
+  [key: string]: unknown;
+}
+
+interface SolicitudData {
+  id: string;
+  type?: string;
+  description?: string;
+  createdAt?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  documento?: string;
+  client?: Client & { subscriptions?: Subscription[]; properties?: Property[] };
+  properties?: Property[];
+  estadoCliente?: string;
+  contract?: {
+    planDetails?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  auditor?: {
+    checklist?: {
+      electrical?: boolean;
+      plumbing?: boolean;
+      gas?: boolean;
+      [key: string]: unknown;
+    };
+    notes?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+interface ClientFormData {
+  nombreCompleto: string;
+  razonSocial: string;
+  email: string;
+  telefono: string;
+  telefonoAlt: string;
+  documento: string;
+  direccionFacturacion: string;
+  provincia: string;
+  ciudad: string;
+  codigoPostal: string;
+  estado: string;
+}
 
 interface SolicitudDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  solicitud: any;
+  solicitud: SolicitudData;
   onUpdateStatus: (id: string, newStatus: string) => void;
 }
 
-const cleanPayload = (data: Record<string, any>) =>
-  Object.entries(data).reduce<Record<string, any>>((acc, [key, value]) => {
+const cleanPayload = (data: Record<string, unknown>) =>
+  Object.entries(data).reduce<Record<string, unknown>>((acc, [key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       acc[key] = value;
     }
     return acc;
   }, {});
 
-const getActiveSubscription = (subscriptions?: any[]) =>
+const getActiveSubscription = (subscriptions?: Subscription[]) =>
   subscriptions?.find(
-    (s) => s?.status === 'ACTIVE' || s?.status === 'REVISION' || s?.status === 'EN_PROCESO'
+    (s) => s?.status === 'ACTIVE' || s?.status === 'REVISION'
   ) || null;
 
 export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
@@ -32,19 +98,18 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
   onUpdateStatus,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('general');
-  const [clientData, setClientData] = useState<any>(solicitud?.client || null);
-  const [propertyData, setPropertyData] = useState<any>(
+  const [propertyData, setPropertyData] = useState<Property | null>(
     solicitud?.client?.properties?.[0] || solicitud?.properties?.[0] || null
   );
-  const [plans, setPlans] = useState<any[]>([]);
-  const [currentPlan, setCurrentPlan] = useState<any>(
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<Subscription | null>(
     getActiveSubscription(solicitud?.client?.subscriptions)
   );
   const [selectedPlanId, setSelectedPlanId] = useState<string>(
     getActiveSubscription(solicitud?.client?.subscriptions)?.planId || ''
   );
-  const [formData, setFormData] = useState<any>(solicitud);
-  const [clientForm, setClientForm] = useState({
+  const [formData, setFormData] = useState<SolicitudData>(solicitud);
+  const [clientForm, setClientForm] = useState<ClientFormData>({
     nombreCompleto: '',
     razonSocial: '',
     email: '',
@@ -93,7 +158,6 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
   useEffect(() => {
     if (solicitud) {
       setFormData(solicitud);
-      setClientData(solicitud.client || null);
       setPropertyData(solicitud.client?.properties?.[0] || solicitud.properties?.[0] || null);
       const active = getActiveSubscription(solicitud.client?.subscriptions);
       setCurrentPlan(active);
@@ -102,20 +166,22 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
         ...prev,
         nombreCompleto: solicitud.client?.nombreCompleto || '',
         razonSocial: solicitud.client?.razonSocial || '',
-        email: solicitud.client?.email || solicitud.email || '',
-        telefono:
+        email: String(solicitud.client?.email || solicitud.email || ''),
+        telefono: String(
           solicitud.client?.telefono ||
           solicitud.client?.telefonoCelular ||
           solicitud.phone ||
-          '',
-        telefonoAlt: solicitud.client?.telefonoAlt || '',
-        documento: solicitud.client?.documento || solicitud.documento || '',
-        direccionFacturacion:
-          solicitud.client?.direccionFacturacion || solicitud.client?.address || '',
-        provincia: solicitud.client?.provincia || '',
-        ciudad: solicitud.client?.ciudad || '',
-        codigoPostal: solicitud.client?.codigoPostal || '',
-        estado: solicitud.client?.estado || solicitud.estadoCliente || 'PENDIENTE',
+          ''
+        ),
+        telefonoAlt: String(solicitud.client?.telefonoAlt || ''),
+        documento: String(solicitud.client?.documento || solicitud.documento || ''),
+        direccionFacturacion: String(
+          solicitud.client?.direccionFacturacion || solicitud.client?.address || ''
+        ),
+        provincia: String(solicitud.client?.provincia || ''),
+        ciudad: String(solicitud.client?.ciudad || ''),
+        codigoPostal: String(solicitud.client?.codigoPostal || ''),
+        estado: String(solicitud.client?.estado || solicitud.estadoCliente || 'PENDIENTE'),
       }));
     }
   }, [solicitud]);
@@ -123,19 +189,19 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
   useEffect(() => {
     if (propertyData) {
       setPropertyForm({
-        address: propertyData.address || solicitud?.address || '',
-        ciudad: propertyData.ciudad || '',
-        provincia: propertyData.provincia || '',
-        barrio: propertyData.barrio || '',
-        tipoPropiedad: propertyData.tipoPropiedad || '',
-        tipoConstruccion: propertyData.tipoConstruccion || '',
-        ambientes: propertyData.ambientes || '',
-        banos: propertyData.banos || '',
-        superficieCubiertaM2: propertyData.superficieCubiertaM2 || '',
-        superficieDescubiertaM2: propertyData.superficieDescubiertaM2 || '',
-        summary: propertyData.summary || '',
-        lat: propertyData.lat || '',
-        lng: propertyData.lng || '',
+        address: String(propertyData.address || solicitud?.address || ''),
+        ciudad: String(propertyData.ciudad || ''),
+        provincia: String(propertyData.provincia || ''),
+        barrio: String(propertyData.barrio || ''),
+        tipoPropiedad: String(propertyData.tipoPropiedad || ''),
+        tipoConstruccion: String(propertyData.tipoConstruccion || ''),
+        ambientes: String(propertyData.ambientes || ''),
+        banos: String(propertyData.banos || ''),
+        superficieCubiertaM2: String(propertyData.superficieCubiertaM2 || ''),
+        superficieDescubiertaM2: String(propertyData.superficieDescubiertaM2 || ''),
+        summary: String(propertyData.summary || ''),
+        lat: String(propertyData.lat || ''),
+        lng: String(propertyData.lng || ''),
       });
     }
   }, [propertyData, solicitud]);
@@ -152,8 +218,7 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
         ]);
 
         if (clientRes.success && clientRes.data) {
-          const c = clientRes.data;
-          setClientData(c);
+          const c = clientRes.data as Client;
           setPropertyData(c.properties?.[0] || null);
           const active = getActiveSubscription(c.subscriptions);
           setCurrentPlan(active);
@@ -162,7 +227,7 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
             ...prev,
             nombreCompleto: c.nombreCompleto || '',
             razonSocial: c.razonSocial || '',
-            email: c.email || prev.email,
+            email: c.email || prev.email || '',
             telefono: c.telefono || c.telefonoCelular || '',
             telefonoAlt: c.telefonoAlt || '',
             documento: c.documento || '',
@@ -224,14 +289,14 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
     );
   }
 
-  const handleContractChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({
+  const handleContractChange = (field: string, value: unknown) => {
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
       contract: {
-        ...prev.contract,
+        ...(prev.contract || {}),
         planDetails: {
-          ...prev.contract?.planDetails,
+          ...(prev.contract?.planDetails || {}),
           [field === 'price' ? 'price' : field]: value,
         },
       },
@@ -344,17 +409,18 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
       // Recargar datos
       const refreshed = await opsApi.get(`/clients/${clientId}`);
       if (refreshed.success && refreshed.data) {
-        setClientData(refreshed.data);
-        setPropertyData(refreshed.data.properties?.[0] || null);
-        const active = getActiveSubscription(refreshed.data.subscriptions);
+        const updatedClient = refreshed.data as Client;
+        setPropertyData(updatedClient.properties?.[0] || null);
+        const active = getActiveSubscription(updatedClient.subscriptions);
         setCurrentPlan(active);
         setSelectedPlanId(active?.planId || '');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[SolicitudDetailModal] Error saving changes', err);
+      const error = err as { response?: { data?: { message?: string | string[] } }; message?: string };
       const message =
-        err?.response?.data?.message ||
-        err?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
         'No se pudieron guardar los cambios.';
       setError(Array.isArray(message) ? message.join(', ') : String(message));
     } finally {
@@ -784,17 +850,17 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                   <dl className="space-y-3 text-sm">
                     <div className="grid grid-cols-3 gap-2">
                       <dt className="text-gray-500">Tipo:</dt>
-                      <dd className="col-span-2 font-medium text-gray-900">{solicitud.type}</dd>
+                      <dd className="col-span-2 font-medium text-gray-900">{String(solicitud.type || '')}</dd>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <dt className="text-gray-500">Fecha Registro:</dt>
                       <dd className="col-span-2 text-gray-900">
-                        {solicitud.createdAt ? new Date(solicitud.createdAt).toLocaleString('es-AR') : '-'}
+                        {solicitud.createdAt ? new Date(String(solicitud.createdAt)).toLocaleString('es-AR') : '-'}
                       </dd>
                     </div>
                     <div className="mt-4">
                       <dt className="text-gray-500 mb-1">Descripción:</dt>
-                      <dd className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-100">{solicitud.description}</dd>
+                      <dd className="text-gray-900 bg-gray-50 p-3 rounded border border-gray-100">{String(solicitud.description || '')}</dd>
                     </div>
                   </dl>
                 </div>
@@ -825,7 +891,7 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                   <textarea 
                     className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     rows={4}
-                    defaultValue={solicitud.auditor?.notes}
+                    defaultValue={String(solicitud.auditor?.notes || '')}
                     placeholder="Ingrese observaciones de la visita..."
                     readOnly
                   ></textarea>
@@ -873,7 +939,7 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                 className="object-contain mb-2"
                 priority
               />
-              <p className="text-gray-400 text-xs mt-1">Mantenimiento de tu Hogar las 24hs | "TU TRANQUILIDAD, NUESTRO COMPROMISO."</p>
+              <p className="text-gray-400 text-xs mt-1">Mantenimiento de tu Hogar las 24hs | &quot;TU TRANQUILIDAD, NUESTRO COMPROMISO.&quot;</p>
             </div>
           </div>
         </div>

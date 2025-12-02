@@ -282,7 +282,7 @@ export class ClientsService {
       where.OR = [
         { email: { contains: filters.search, mode: 'insensitive' } },
         { nombreCompleto: { contains: filters.search, mode: 'insensitive' } },
-        { documento: { contains: filters.search, mode: 'insensitive' } },
+        { documento: { contains: filters.search } },
         { telefono: { contains: filters.search } },
       ];
     }

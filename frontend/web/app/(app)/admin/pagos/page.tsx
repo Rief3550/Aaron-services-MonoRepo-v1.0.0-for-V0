@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { opsApi } from '@/lib/api/services';
 
 type Payment = {
   id: string;
@@ -36,27 +37,18 @@ export default function PagosPage() {
     setLoading(true);
     setError(null);
     try {
-      const fetchJson = async (path: string, init?: RequestInit) => {
-        const res = await fetch(path, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...init });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
-        return res.json();
-      };
-
       const [payRes, subsRes] = await Promise.all([
-        fetchJson('/ops/payments'),
-        fetchJson('/ops/subscriptions'),
+        opsApi.get('/payments'),
+        opsApi.get('/subscriptions'),
       ]);
 
-      const payData = (payRes?.data as any) || payRes;
-      const subData = (subsRes?.data as any) || subsRes;
+      const payData = payRes.success ? payRes.data : payRes;
+      const subData = subsRes.success ? subsRes.data : subsRes;
 
       setPayments(Array.isArray(payData) ? payData : []);
       setSubs(
         Array.isArray(subData)
-          ? subData.map((s: any) => ({ id: s.id, plan: s.plan || { name: 'Plan' } }))
+          ? subData.map((s: Subscription) => ({ id: s.id, plan: s.plan || { name: 'Plan' } }))
           : [],
       );
     } catch (e) {
@@ -76,21 +68,10 @@ export default function PagosPage() {
     setLoading(true);
     setError(null);
     try {
-      await fetch('/ops/payments/manual', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscriptionId: form.subscriptionId,
-          amount: Number(form.amount),
-          note: form.note || undefined,
-        }),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || res.statusText);
-        }
-        return res.json();
+      await opsApi.post('/payments/manual', {
+        subscriptionId: form.subscriptionId,
+        amount: Number(form.amount),
+        note: form.note || undefined,
       });
       setForm({ subscriptionId: '', amount: '', note: '' });
       await loadData();

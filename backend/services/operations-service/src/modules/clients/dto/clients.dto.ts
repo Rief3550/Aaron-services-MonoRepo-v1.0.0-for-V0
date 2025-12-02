@@ -1,5 +1,5 @@
-import { IsString, IsEmail, IsOptional, IsEnum, IsUUID, IsNumber, IsInt } from 'class-validator';
 import { TipoPersona, EstadoCliente } from '@aaron/prisma-client-ops';
+import { IsString, IsEmail, IsOptional, IsEnum, IsUUID, IsNumber, IsInt } from 'class-validator';
 
 export class CreateClientDto {
   @IsUUID()
@@ -27,6 +27,10 @@ export class CreateClientInternalDto {
   @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsNumber()
