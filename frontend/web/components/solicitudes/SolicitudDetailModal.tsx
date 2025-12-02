@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { ContractForm } from './ContractForm';
 import { opsApi } from '@/lib/api/services';
+import { approveClient, type ApproveClientDto } from '@/lib/clients/api';
 import type { Client } from '@/lib/clients/api';
 import type { Plan } from '@/lib/plans/types';
 import type { Subscription } from '@/lib/subscriptions/types';
@@ -78,6 +79,35 @@ interface SolicitudDetailModalProps {
   onUpdateStatus: (id: string, newStatus: string) => void;
 }
 
+const PROPERTY_TYPE_OPTIONS = [
+  { value: 'DEPARTAMENTO', label: 'Departamento' },
+  { value: 'CASA', label: 'Casa' },
+  { value: 'PH', label: 'PH' },
+  { value: 'COUNTRY', label: 'Country' },
+  { value: 'LOCAL', label: 'Local comercial' },
+  { value: 'OTRO', label: 'Otro' },
+];
+
+const CONSTRUCTION_TYPE_OPTIONS = [
+  { value: 'LOSA', label: 'Losa / Tradicional' },
+  { value: 'CHAPA', label: 'Chapa' },
+  { value: 'MIXTO', label: 'Mixto' },
+  { value: 'OTRO', label: 'Otro' },
+];
+
+const sanitizeDocument = (value: string): string => value.replace(/[^0-9a-zA-Z-]/g, '').slice(0, 20);
+
+const sanitizePhone = (value: string): string => {
+  if (!value) return '';
+  let cleaned = value.replace(/[^0-9+]/g, '');
+  if (cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned.slice(1).replace(/\+/g, '');
+  } else {
+    cleaned = cleaned.replace(/\+/g, '');
+  }
+  return cleaned.slice(0, 20);
+};
+
 const cleanPayload = (data: Record<string, unknown>) =>
   Object.entries(data).reduce<Record<string, unknown>>((acc, [key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -139,13 +169,17 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const clientId = useMemo(
-    () => solicitud?.client?.id || solicitud?.clientId,
-    [solicitud]
-  );
+  const clientId = useMemo<string | undefined>((): string | undefined => {
+    const id = solicitud?.client?.id || solicitud?.clientId;
+    if (typeof id === 'string') {
+      return id;
+    }
+    return undefined;
+  }, [solicitud]);
 
   const propertyId = useMemo(
     () =>
@@ -183,6 +217,33 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
         codigoPostal: String(solicitud.client?.codigoPostal || ''),
         estado: String(solicitud.client?.estado || solicitud.estadoCliente || 'PENDIENTE'),
       }));
+      
+      // Cargar coordenadas automáticamente desde la solicitud/cliente
+      const property = solicitud.client?.properties?.[0] || solicitud.properties?.[0];
+      const coordsFromProperty = property?.lat && property?.lng && property.lat !== 0 && property.lng !== 0;
+      const coordsFromClient = solicitud.client?.lat && solicitud.client?.lng && solicitud.client.lat !== 0 && solicitud.client.lng !== 0;
+      const coordsFromSolicitud = solicitud.lat && solicitud.lng && solicitud.lat !== 0 && solicitud.lng !== 0;
+      
+      if (coordsFromProperty || coordsFromClient || coordsFromSolicitud) {
+        setPropertyForm(prev => ({
+          ...prev,
+          address: prev.address || property?.address || solicitud.address || '',
+          lat: prev.lat || String(
+            property?.lat && property.lat !== 0 
+              ? property.lat 
+              : (solicitud.client?.lat && solicitud.client.lat !== 0 
+                  ? solicitud.client.lat 
+                  : (solicitud.lat && solicitud.lat !== 0 ? solicitud.lat : ''))
+          ),
+          lng: prev.lng || String(
+            property?.lng && property.lng !== 0 
+              ? property.lng 
+              : (solicitud.client?.lng && solicitud.client.lng !== 0 
+                  ? solicitud.client.lng 
+                  : (solicitud.lng && solicitud.lng !== 0 ? solicitud.lng : ''))
+          ),
+        }));
+      }
     }
   }, [solicitud]);
 
@@ -200,9 +261,47 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
         superficieCubiertaM2: String(propertyData.superficieCubiertaM2 || ''),
         superficieDescubiertaM2: String(propertyData.superficieDescubiertaM2 || ''),
         summary: String(propertyData.summary || ''),
-        lat: String(propertyData.lat || ''),
-        lng: String(propertyData.lng || ''),
+        // Cargar coordenadas de múltiples fuentes (prioridad: propiedad > solicitud > cliente)
+        lat: String(
+          propertyData.lat && propertyData.lat !== 0 
+            ? propertyData.lat 
+            : (solicitud?.lat && solicitud.lat !== 0 
+                ? solicitud.lat 
+                : (solicitud?.client?.lat && solicitud.client.lat !== 0 
+                    ? solicitud.client.lat 
+                    : ''))
+        ),
+        lng: String(
+          propertyData.lng && propertyData.lng !== 0 
+            ? propertyData.lng 
+            : (solicitud?.lng && solicitud.lng !== 0 
+                ? solicitud.lng 
+                : (solicitud?.client?.lng && solicitud.client.lng !== 0 
+                    ? solicitud.client.lng 
+                    : ''))
+        ),
       });
+    } else if (solicitud) {
+      // Si no hay propertyData, cargar coordenadas directamente de la solicitud/cliente
+      setPropertyForm(prev => ({
+        ...prev,
+        address: prev.address || String(solicitud?.address || ''),
+        // Cargar coordenadas del cliente/solicitud si no están en propertyForm
+        lat: prev.lat || String(
+          solicitud?.lat && solicitud.lat !== 0 
+            ? solicitud.lat 
+            : (solicitud?.client?.lat && solicitud.client.lat !== 0 
+                ? solicitud.client.lat 
+                : '')
+        ),
+        lng: prev.lng || String(
+          solicitud?.lng && solicitud.lng !== 0 
+            ? solicitud.lng 
+            : (solicitud?.client?.lng && solicitud.client.lng !== 0 
+                ? solicitud.client.lng 
+                : '')
+        ),
+      }));
     }
   }, [propertyData, solicitud]);
 
@@ -237,6 +336,21 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
             codigoPostal: c.codigoPostal || '',
             estado: c.estado || prev.estado,
           }));
+          
+          // Cargar coordenadas automáticamente del cliente/propiedad (NO requiere ingreso manual)
+          const prop = c.properties?.[0];
+          const hasPropCoords = prop?.lat && prop?.lng && prop.lat !== 0 && prop.lng !== 0;
+          const hasClientCoords = c.lat && c.lng && c.lat !== 0 && c.lng !== 0;
+          
+          if (hasPropCoords || hasClientCoords) {
+            setPropertyForm(prev => ({
+              ...prev,
+              // Usar coordenadas de la propiedad primero, luego del cliente
+              lat: prev.lat || (hasPropCoords ? String(prop.lat) : String(c.lat)),
+              lng: prev.lng || (hasPropCoords ? String(prop.lng) : String(c.lng)),
+              address: prev.address || prop?.address || '',
+            }));
+          }
         }
 
         if (plansRes.success && Array.isArray(plansRes.data)) {
@@ -335,6 +449,145 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
     } catch (err) {
       console.error('[SolicitudDetailModal] Error updating status', err);
       setError('No se pudo actualizar el estado del cliente.');
+    }
+  };
+
+  const handleApproveClient = async () => {
+    // Validar y asegurar que clientId es string
+    if (!clientId) {
+      setError('No se pudo identificar el cliente. Por favor, cierre y vuelva a abrir la solicitud.');
+      return;
+    }
+
+    const validClientId: string = typeof clientId === 'string' ? clientId : String(clientId);
+    
+    if (!selectedPlanId) {
+      setError('Debe seleccionar un plan antes de aprobar el cliente.');
+      return;
+    }
+
+    setApproving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // Obtener coordenadas de múltiples fuentes (solicitud directa, propiedad, cliente)
+      // Prioridad: propertyForm > propertyData > solicitud > solicitud.client
+      const lat = propertyForm.lat && propertyForm.lat !== '' && propertyForm.lat !== '0'
+        ? Number(propertyForm.lat) 
+        : (propertyData?.lat && propertyData.lat !== 0 
+            ? Number(propertyData.lat) 
+            : (solicitud?.lat && solicitud.lat !== 0 
+                ? Number(solicitud.lat) 
+                : (solicitud?.client?.lat && solicitud.client.lat !== 0 
+                    ? Number(solicitud.client.lat) 
+                    : undefined)));
+      
+      const lng = propertyForm.lng && propertyForm.lng !== '' && propertyForm.lng !== '0'
+        ? Number(propertyForm.lng) 
+        : (propertyData?.lng && propertyData.lng !== 0 
+            ? Number(propertyData.lng) 
+            : (solicitud?.lng && solicitud.lng !== 0 
+                ? Number(solicitud.lng) 
+                : (solicitud?.client?.lng && solicitud.client.lng !== 0 
+                    ? Number(solicitud.client.lng) 
+                    : undefined)));
+
+      const address = propertyForm.address || propertyData?.address || solicitud?.address || '';
+
+      // Validaciones: solo requerir coordenadas si realmente no existen o son 0,0 (hardcodeadas)
+      const hasValidCoordinates = lat && lng && lat !== 0 && lng !== 0;
+      
+      if (!address) {
+        setError('Debe completar la dirección de la propiedad antes de aprobar.');
+        setApproving(false);
+        return;
+      }
+
+      // Solo pedir coordenadas si realmente no existen (no vienen del cliente/solicitud)
+      // Si ya vienen del cliente, las usamos automáticamente
+      if (!hasValidCoordinates) {
+        setError('Las coordenadas son requeridas para aprobar. Si el cliente no las proporcionó durante el registro, por favor complételas manualmente en el formulario de la propiedad.');
+        setApproving(false);
+        return;
+      }
+
+      // Preparar payload para el endpoint unificado
+      const approvalData: ApproveClientDto = {
+        // Datos del cliente
+        telefono: clientForm.telefono,
+        telefonoAlt: clientForm.telefonoAlt || undefined,
+        documento: clientForm.documento,
+        direccionFacturacion: clientForm.direccionFacturacion,
+        provincia: clientForm.provincia,
+        ciudad: clientForm.ciudad,
+        codigoPostal: clientForm.codigoPostal || undefined,
+
+        // Datos del inmueble (usar coordenadas reales, no hardcodeadas)
+        propertyAddress: address,
+        propertyLat: lat,
+        propertyLng: lng,
+        tipoPropiedad: propertyForm.tipoPropiedad || 'CASA',
+        tipoConstruccion: propertyForm.tipoConstruccion || undefined,
+        ambientes: propertyForm.ambientes ? Number(propertyForm.ambientes) : undefined,
+        banos: propertyForm.banos ? Number(propertyForm.banos) : undefined,
+        superficieCubiertaM2: propertyForm.superficieCubiertaM2 ? Number(propertyForm.superficieCubiertaM2) : undefined,
+        superficieDescubiertaM2: propertyForm.superficieDescubiertaM2 ? Number(propertyForm.superficieDescubiertaM2) : undefined,
+        barrio: propertyForm.barrio || undefined,
+        observacionesPropiedad: propertyForm.summary || undefined,
+
+        // Plan y suscripción (REQUERIDO)
+        planId: selectedPlanId,
+        billingDay: 1, // Por defecto día 1
+        subscriptionStartDate: new Date().toISOString().split('T')[0],
+
+        // Contrato (opcional - puede venir del ContractForm)
+        contractStartDate: formData.contract?.startDate 
+          ? new Date(formData.contract.startDate as string).toISOString().split('T')[0]
+          : undefined,
+        contractEndDate: formData.contract?.endDate
+          ? new Date(formData.contract.endDate as string).toISOString().split('T')[0]
+          : undefined,
+        contractNotes: formData.contract?.notes as string || undefined,
+      };
+
+      // Llamar al endpoint unificado
+      await approveClient(validClientId, approvalData);
+
+      // Éxito
+      setSuccess('Cliente aprobado y activado exitosamente. Se envió un email de bienvenida.');
+      
+      // Recargar datos del cliente
+      const refreshed = await opsApi.get(`/clients/${validClientId}`);
+      if (refreshed.success && refreshed.data) {
+        const updatedClient = refreshed.data as Client;
+        setClientForm(prev => ({
+          ...prev,
+          estado: updatedClient.estado || prev.estado,
+        }));
+        setPropertyData(updatedClient.properties?.[0] || null);
+        const active = getActiveSubscription(updatedClient.subscriptions);
+        setCurrentPlan(active);
+        setSelectedPlanId(active?.planId || '');
+      }
+
+      // Actualizar estado en la lista
+      onUpdateStatus(solicitud.id, 'ACTIVO');
+
+      // Cerrar modal después de 3 segundos
+      setTimeout(() => {
+        onClose();
+      }, 3000);
+    } catch (err) {
+      console.error('[SolicitudDetailModal] Error approving client:', err);
+      const error = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'No se pudo aprobar el cliente. Verifique los datos.';
+      setError(Array.isArray(message) ? message.join(', ') : String(message));
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -445,6 +698,17 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
               <p className="text-xs text-gray-500 mt-1">Gestión de alta de nuevo suministro</p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Botón Aprobar Cliente - solo si está PENDIENTE o EN_PROCESO */}
+              {(clientForm.estado === 'PENDIENTE' || clientForm.estado === 'EN_PROCESO') && (
+                <button
+                  onClick={handleApproveClient}
+                  disabled={approving || !selectedPlanId}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={!selectedPlanId ? 'Debe seleccionar un plan primero' : 'Aprobar y activar cliente'}
+                >
+                  {approving ? 'Aprobando...' : '✅ Aprobar y Activar'}
+                </button>
+              )}
               <select
                 value={clientForm.estado}
                 onChange={(e) => handleStatusChange(e.target.value)}
@@ -547,8 +811,13 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                         <input
                           className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           value={clientForm.telefono}
+                          inputMode="tel"
+                          maxLength={20}
                           onChange={(e) =>
-                            setClientForm((prev) => ({ ...prev, telefono: e.target.value }))
+                            setClientForm((prev) => ({
+                              ...prev,
+                              telefono: sanitizePhone(e.target.value),
+                            }))
                           }
                         />
                       </label>
@@ -557,8 +826,13 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                         <input
                           className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           value={clientForm.telefonoAlt}
+                          inputMode="tel"
+                          maxLength={20}
                           onChange={(e) =>
-                            setClientForm((prev) => ({ ...prev, telefonoAlt: e.target.value }))
+                            setClientForm((prev) => ({
+                              ...prev,
+                              telefonoAlt: sanitizePhone(e.target.value),
+                            }))
                           }
                         />
                       </label>
@@ -569,8 +843,13 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                         <input
                           className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           value={clientForm.documento}
+                          inputMode="text"
+                          maxLength={20}
                           onChange={(e) =>
-                            setClientForm((prev) => ({ ...prev, documento: e.target.value }))
+                            setClientForm((prev) => ({
+                              ...prev,
+                              documento: sanitizeDocument(e.target.value),
+                            }))
                           }
                         />
                       </label>
@@ -698,29 +977,43 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
                       <div className="grid grid-cols-2 gap-3">
                         <label className="block">
                           <span className="text-gray-600">Tipo Propiedad</span>
-                          <input
+                          <select
                             className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            value={propertyForm.tipoPropiedad}
+                            value={propertyForm.tipoPropiedad || ''}
                             onChange={(e) =>
                               setPropertyForm((prev) => ({
                                 ...prev,
                                 tipoPropiedad: e.target.value,
                               }))
                             }
-                          />
+                          >
+                            <option value="">Selecciona una opción</option>
+                            {PROPERTY_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                         <label className="block">
                           <span className="text-gray-600">Tipo Construcción</span>
-                          <input
+                          <select
                             className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            value={propertyForm.tipoConstruccion}
+                            value={propertyForm.tipoConstruccion || ''}
                             onChange={(e) =>
                               setPropertyForm((prev) => ({
                                 ...prev,
                                 tipoConstruccion: e.target.value,
                               }))
                             }
-                          />
+                          >
+                            <option value="">Selecciona una opción</option>
+                            {CONSTRUCTION_TYPE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -944,6 +1237,8 @@ export const SolicitudDetailModal: React.FC<SolicitudDetailModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de Aprobación */}
     </div>
   );
 };

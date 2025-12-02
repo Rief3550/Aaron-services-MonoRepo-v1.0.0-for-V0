@@ -14,6 +14,7 @@ import {
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/user.decorator';
+import { ActiveClientGuard } from '../../common/guards/active-client.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 
@@ -52,6 +53,7 @@ export class WorkOrdersController {
    */
   @Post('request')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, RolesGuard, ActiveClientGuard)
   @Roles('CUSTOMER', 'ADMIN', 'OPERATOR')
   async createRequest(
     @CurrentUser() user: { userId: string; roles?: string[] },

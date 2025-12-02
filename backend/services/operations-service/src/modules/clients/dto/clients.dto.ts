@@ -205,3 +205,135 @@ export class ActivateClientDto {
   observaciones?: string;
 }
 
+/**
+ * DTO para aprobar y activar un cliente completo (endpoint unificado)
+ * Incluye: actualizar datos del cliente, propiedad, suscripción, contrato y revisión técnica
+ */
+export class ApproveClientDto {
+  // === DATOS DEL CLIENTE (actualización) ===
+  @IsOptional()
+  @IsString()
+  telefono?: string;
+
+  @IsOptional()
+  @IsString()
+  telefonoAlt?: string;
+
+  @IsOptional()
+  @IsString()
+  documento?: string;
+
+  @IsOptional()
+  @IsString()
+  direccionFacturacion?: string;
+
+  @IsOptional()
+  @IsString()
+  provincia?: string;
+
+  @IsOptional()
+  @IsString()
+  ciudad?: string;
+
+  @IsOptional()
+  @IsString()
+  codigoPostal?: string;
+
+  // === DATOS DEL INMUEBLE (actualizar o crear) ===
+  @IsOptional()
+  @IsString()
+  propertyAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  propertyLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  propertyLng?: number;
+
+  @IsOptional()
+  @IsString()
+  tipoPropiedad?: string; // DEPARTAMENTO|CASA|PH|COUNTRY|LOCAL|OTRO
+
+  @IsOptional()
+  @IsString()
+  tipoConstruccion?: string; // LOSA|CHAPA|MIXTO|OTRO
+
+  @IsOptional()
+  @IsInt()
+  ambientes?: number;
+
+  @IsOptional()
+  @IsInt()
+  banos?: number;
+
+  @IsOptional()
+  @IsNumber()
+  superficieCubiertaM2?: number;
+
+  @IsOptional()
+  @IsNumber()
+  superficieDescubiertaM2?: number;
+
+  @IsOptional()
+  @IsString()
+  barrio?: string;
+
+  @IsOptional()
+  @IsString()
+  observacionesPropiedad?: string;
+
+  // === PLAN Y SUSCRIPCIÓN ===
+  @IsUUID()
+  planId: string;
+
+  @IsOptional()
+  @IsInt()
+  @IsInt()
+  billingDay?: number; // Día de cobro (1-28)
+
+  @IsOptional()
+  @IsString()
+  subscriptionStartDate?: string; // ISO date string
+
+  // === CONTRATO ===
+  @IsOptional()
+  @IsString()
+  contractNumber?: string; // Auto-generado si no se especifica
+
+  @IsOptional()
+  @IsString()
+  contractStartDate?: string; // ISO date string
+
+  @IsOptional()
+  @IsString()
+  contractEndDate?: string; // ISO date string (opcional)
+
+  @IsOptional()
+  @IsString()
+  contractNotes?: string;
+
+  // === REVISIÓN TÉCNICA (auditoría) ===
+  @IsOptional()
+  @IsString()
+  technicalReviewDate?: string; // ISO date string
+
+  @IsOptional()
+  @IsString()
+  reviewedBy?: string; // User ID del técnico/auditor
+
+  @IsOptional()
+  @IsString()
+  reviewStatus?: string; // APROBADO|REQUIERE_TRABAJO|RECHAZADO
+
+  @IsOptional()
+  @IsString()
+  technicalNotes?: string;
+
+  // === OBSERVACIONES GENERALES ===
+  @IsOptional()
+  @IsString()
+  observaciones?: string;
+}
+

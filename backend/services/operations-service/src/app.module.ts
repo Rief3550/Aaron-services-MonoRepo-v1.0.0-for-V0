@@ -10,7 +10,7 @@ import { CrewsModule } from './modules/crews/crews.module';
 import { EventsModule } from './modules/events/events.module';
 import { HealthModule } from './modules/health/health.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
-//import { PaymentsModule } from './modules/payments/payments.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -36,6 +36,7 @@ import { WorkTypesModule } from './modules/work-types/work-types.module';
     MetricsModule,
     EventsModule,
     PropertiesModule,
+    PaymentsModule,
     HealthModule,
   ],
   providers: [JwtAuthGuard, RolesGuard],

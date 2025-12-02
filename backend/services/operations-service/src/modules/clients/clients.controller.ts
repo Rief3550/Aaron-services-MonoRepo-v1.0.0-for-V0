@@ -18,6 +18,7 @@ import {
   ClientFiltersDto,
   AssignAuditorDto,
   ActivateClientDto,
+  ApproveClientDto,
 } from './dto/clients.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -83,6 +84,16 @@ export class ClientsController {
   @UseGuards(JwtAuthGuard)
   async getMyProfile(@CurrentUser() user: { userId: string }) {
     return this.clientsService.findByUserId(user.userId);
+  }
+
+  /**
+   * Cliente obtiene solo el estado/estatus de su cuenta (App móvil)
+   * GET /ops/clients/me/status
+   */
+  @Get('me/status')
+  @UseGuards(JwtAuthGuard)
+  async getMyStatus(@CurrentUser() user: { userId: string }) {
+    return this.clientsService.getStatusByUserId(user.userId);
   }
 
   /**
@@ -185,5 +196,21 @@ export class ClientsController {
   ) {
     return this.clientsService.activateClient(id, dto?.observaciones);
   }
-}
 
+  /**
+   * Admin/Operator: Aprobar y activar un cliente completo (endpoint unificado)
+   * POST /ops/clients/:id/approve
+   * 
+   * Actualiza datos del cliente, propiedad, crea/actualiza suscripción, contrato y activa el cliente
+   */
+  @Post(':id/approve')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'OPERATOR')
+  async approveClient(
+    @Param('id') id: string,
+    @Body() dto: ApproveClientDto,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.clientsService.approveClient(id, dto, user.userId);
+  }
+}

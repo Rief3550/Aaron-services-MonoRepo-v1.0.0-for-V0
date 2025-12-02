@@ -31,6 +31,17 @@ export class PropertiesService {
           status: 'PRE_ONBOARD',
         },
       });
+
+      if (client?.id) {
+        await prisma.client.update({
+          where: { id: client.id },
+          data: {
+            lat: dto.lat,
+            lng: dto.lng,
+          },
+        });
+      }
+
       return Result.ok(property);
     } catch (error) {
       logger.error('Create property error', error);
@@ -114,6 +125,15 @@ export class PropertiesService {
 
   async update(id: string, dto: Partial<CreatePropertyDto>) {
     try {
+      const existing = await prisma.customerProperty.findUnique({
+        where: { id },
+        select: { clientId: true },
+      });
+
+      if (!existing) {
+        return Result.error(new Error('Property not found'));
+      }
+
       const updated = await prisma.customerProperty.update({
         where: { id },
         data: {
@@ -124,6 +144,17 @@ export class PropertiesService {
           ...(dto.checklist && { checklist: dto.checklist }),
         },
       });
+
+      if (existing.clientId && (dto.lat !== undefined || dto.lng !== undefined)) {
+        await prisma.client.update({
+          where: { id: existing.clientId },
+          data: {
+            ...(dto.lat !== undefined && { lat: dto.lat }),
+            ...(dto.lng !== undefined && { lng: dto.lng }),
+          },
+        });
+      }
+
       return Result.ok(updated);
     } catch (error) {
       logger.error('Update property error', error);
@@ -218,6 +249,16 @@ export class PropertiesService {
         },
       });
 
+      if (property.clientId) {
+        await prisma.client.update({
+          where: { id: property.clientId },
+          data: {
+            lat: dto.lat,
+            lng: dto.lng,
+          },
+        });
+      }
+
       logger.info(`Location captured for property ${propertyId}: ${dto.lat}, ${dto.lng}`);
       return Result.ok(updated);
     } catch (error) {
@@ -289,6 +330,16 @@ export class PropertiesService {
           notes: dto.decision === 'REJECTED' ? dto.motivoRechazo : dto.observaciones,
         },
       });
+
+      if (property.clientId) {
+        await prisma.client.update({
+          where: { id: property.clientId },
+          data: {
+            lat: dto.lat,
+            lng: dto.lng,
+          },
+        });
+      }
 
       // 3. Crear items del checklist si se proporcionaron
       if (dto.checklistItems && dto.checklistItems.length > 0) {

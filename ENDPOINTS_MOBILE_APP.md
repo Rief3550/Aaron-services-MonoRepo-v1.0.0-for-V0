@@ -116,6 +116,28 @@ Authorization: Bearer {accessToken}
 }
 ```
 
+### Consultar Estado de Mi Cuenta
+```http
+GET /ops/clients/me/status
+Authorization: Bearer {accessToken}
+```
+
+**Respuesta:**
+```json
+{
+  "clientId": "uuid",
+  "estado": "PENDIENTE",
+  "canOperate": false,
+  "message": "Tu solicitud está pendiente de revisión. Recibirás una notificación cuando un operador la procese.",
+  "lat": -29.408660,
+  "lng": -66.858431,
+  "updatedAt": "2025-11-28T17:11:42.509Z",
+  "lastReviewAt": null
+}
+```
+
+> Este endpoint es liviano y está pensado para que la app lo consulte periódicamente. Cuando `estado` cambie a `ACTIVO`, `canOperate` pasará automáticamente a `true`.
+
 ---
 
 ## 🏠 Propiedades (Inmuebles)

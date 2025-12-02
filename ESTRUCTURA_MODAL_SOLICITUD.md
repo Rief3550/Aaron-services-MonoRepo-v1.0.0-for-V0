@@ -598,7 +598,7 @@ Para no cortar la vista, puedes:
 
 Ejemplo completo en `SolicitudDetailModal.tsx` (línea 93):
 ```typescript
-<div className="relative inline-block bg-white rounded-lg text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full z-10 max-h-[90vh] flex flex-col">
+<div className="relative bg-white rounded-lg text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full z-10 max-h-[90vh] flex flex-col">
 ```
 
 ---

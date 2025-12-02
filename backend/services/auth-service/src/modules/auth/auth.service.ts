@@ -120,8 +120,14 @@ export class AuthService {
         },
       });
 
+      // Crear cliente inmediatamente en operations-service (no esperar verificación de email)
+      // Esto permite que la app móvil pueda acceder a los endpoints /me desde el inicio
+      if (user.roles.some(r => r.name === 'CUSTOMER')) {
+        this.createClientInOperations(user.id, user.email, user.fullName || undefined, dto.lat, dto.lng)
+          .catch(err => this.logger.error('Failed to create client in operations during signup', err));
+      }
+
       // Send verification email
-      // El cliente se creará cuando el email sea verificado (en verifyEmail)
       // Guardamos lat/lng en el token para recuperarlos después
       const verificationToken = this.generateUUID();
       await this.emailService.sendVerificationEmail(
@@ -131,9 +137,6 @@ export class AuthService {
         dto.lat,
         dto.lng
       );
-      
-      // NO creamos el cliente aquí - se creará cuando el email sea verificado
-      // Esto asegura que solo usuarios con email verificado aparezcan en solicitudes
 
       return Result.ok({
         user: {
@@ -377,15 +380,15 @@ export class AuthService {
         data: { status: 'DELIVERED' },
       });
 
-      // Crear cliente en operations-service cuando el email es verificado
-      // Solo si el usuario tiene rol CUSTOMER
-      // Recuperar lat/lng del meta del audit
+      // El cliente ya fue creado en signup, así que solo verificamos que exista
+      // Si por alguna razón no existe (ej: operations-service estaba caído), intentamos crearlo ahora
       if (user.roles.some(r => r.name === 'CUSTOMER')) {
         const meta = audit.meta as { lat?: number; lng?: number } | null;
         const lat = meta?.lat;
         const lng = meta?.lng;
+        // Intentar crear solo si no existe (el método createClientInOperations es idempotente vía el servicio)
         this.createClientInOperations(user.id, user.email, user.fullName || undefined, lat, lng)
-          .catch(err => this.logger.error('Failed to create client after email verification', err));
+          .catch(err => this.logger.warn('Client may already exist after email verification', err));
       }
 
       // Devolver el estado de verificación

@@ -148,3 +148,94 @@ export async function createManualClient(data: CreateManualClientDto): Promise<C
   }
   return result.data;
 }
+
+/**
+ * DTO para aprobar y activar un cliente completo
+ */
+export interface ApproveClientDto {
+  // Datos del cliente
+  telefono?: string;
+  telefonoAlt?: string;
+  documento?: string;
+  direccionFacturacion?: string;
+  provincia?: string;
+  ciudad?: string;
+  codigoPostal?: string;
+
+  // Datos del inmueble
+  propertyAddress?: string;
+  propertyLat?: number;
+  propertyLng?: number;
+  tipoPropiedad?: string;
+  tipoConstruccion?: string;
+  ambientes?: number;
+  banos?: number;
+  superficieCubiertaM2?: number;
+  superficieDescubiertaM2?: number;
+  barrio?: string;
+  observacionesPropiedad?: string;
+
+  // Plan y suscripción
+  planId: string; // REQUERIDO
+  billingDay?: number;
+  subscriptionStartDate?: string;
+
+  // Contrato (opcional)
+  contractNumber?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  contractNotes?: string;
+
+  // Revisión técnica (opcional)
+  technicalReviewDate?: string;
+  reviewedBy?: string;
+  reviewStatus?: string;
+  technicalNotes?: string;
+
+  // Observaciones generales
+  observaciones?: string;
+}
+
+/**
+ * Aprueba y activa un cliente completo (endpoint unificado)
+ */
+export async function approveClient(
+  clientId: string,
+  data: ApproveClientDto
+): Promise<{
+  client: Client;
+  property: any;
+  subscription: any;
+  contract: any;
+}> {
+  try {
+    const result = await opsApi.post<{
+      client: Client;
+      property: any;
+      subscription: any;
+      contract: any;
+    }>(`/clients/${clientId}/approve`, data);
+    
+    if (!result.success || !result.data) {
+      let errorMessage = 'Error al aprobar cliente';
+      if (result.error) {
+        if (typeof result.error === 'object' && result.error !== null) {
+          const errObj = result.error as any;
+          if (errObj.message) {
+            errorMessage = Array.isArray(errObj.message) 
+              ? errObj.message.join(', ') 
+              : String(errObj.message);
+          }
+        } else {
+          errorMessage = String(result.error);
+        }
+      }
+      console.error('[approveClient] Error:', errorMessage, data);
+      throw new Error(errorMessage);
+    }
+    return result.data;
+  } catch (error) {
+    console.error('[approveClient] Error approving client:', error);
+    throw error;
+  }
+}
