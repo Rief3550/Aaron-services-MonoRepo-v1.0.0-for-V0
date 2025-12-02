@@ -604,4 +604,4 @@ Authorization: Bearer {accessToken}
 - El `accessToken` expira en 15 minutos
 - Usar `refreshToken` para obtener nuevo `accessToken`
 - Los endpoints con `/me` devuelven datos del usuario autenticado
-- Las coordenadas (lat/lng) son requeridas en varios endpoints
+- Las coordenadas (lat/lng) son requeridas en varios endpoints.

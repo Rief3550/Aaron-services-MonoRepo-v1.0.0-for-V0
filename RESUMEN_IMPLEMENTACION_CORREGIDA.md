@@ -196,3 +196,4 @@ const handleApproveClient = async () => {
 **Versión:** 1.0.1 (Corregida)
 **Estado:** ✅ **LISTO PARA PRODUCCIÓN** (sin duplicación)
 
+

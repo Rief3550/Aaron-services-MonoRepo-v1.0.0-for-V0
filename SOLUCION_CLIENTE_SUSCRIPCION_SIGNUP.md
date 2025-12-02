@@ -254,3 +254,4 @@ La verificación de email ahora es opcional para el flujo básico:
 **Fecha de implementación**: 2025-12-02
 **Versión**: 1.0.0
 
+

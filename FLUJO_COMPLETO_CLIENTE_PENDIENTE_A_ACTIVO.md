@@ -523,3 +523,4 @@ Si un cliente `SUSPENDIDO` necesita reactivarse:
 **Última actualización**: 2025-12-02
 **Versión**: 1.0.0
 
+

@@ -261,3 +261,4 @@ La verificación de email ahora es opcional para el flujo básico:
 **Versión:** 1.0.0  
 **Estado:** ✅ Listo para producción
 
+
