@@ -1,5 +1,5 @@
 import { Result , Logger } from '@aaron/common';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { prisma } from '../../config/database';
 import { isValidCrewTransition, CrewState } from '../../utils/state-transitions';
@@ -156,15 +156,117 @@ export class CrewsService {
       // Find crew where members array contains userId
       // Since members is JSON, we fetch all and filter in memory for simplicity
       // or use raw query for performance if needed. Given low volume of crews, memory filter is fine.
+      let userRecord: { id: string; fullName: string | null; email: string | null; zone?: string | null } | null = null;
+      let normalizedFullName: string | undefined;
+      let normalizedEmail: string | undefined;
+
+      try {
+        userRecord = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            zone: true,
+          },
+        });
+        normalizedFullName = userRecord?.fullName
+          ? userRecord.fullName.trim().toLowerCase()
+          : undefined;
+        normalizedEmail = userRecord?.email
+          ? userRecord.email.trim().toLowerCase()
+          : undefined;
+      } catch (error) {
+        logger.warn('Unable to fetch user data for crew lookup', error);
+      }
+
       const crews = await prisma.crew.findMany();
-      
-      const myCrew = crews.find(crew => {
-        const members = crew.members as string[] | null;
-        return Array.isArray(members) && members.includes(userId);
+
+      const normalize = (value?: string | null) =>
+        typeof value === 'string' ? value.trim().toLowerCase() : undefined;
+
+      const matchesMember = (member: string | Record<string, any>): boolean => {
+        if (typeof member === 'string') {
+          const normalizedMember = normalize(member);
+          return (
+            member === userId ||
+            (normalizedFullName && normalizedMember === normalizedFullName) ||
+            (normalizedEmail && normalizedMember === normalizedEmail)
+          );
+        }
+
+        if (member && typeof member === 'object') {
+          const candidate = member as {
+            id?: string;
+            userId?: string;
+            user?: { id?: string; fullName?: string; email?: string };
+            name?: string;
+            email?: string;
+          };
+
+          const idMatches =
+            candidate.id === userId ||
+            candidate.userId === userId ||
+            candidate.user?.id === userId;
+
+          if (idMatches) {
+            return true;
+          }
+
+          const textMatches = (value?: string) =>
+            (normalizedFullName && normalize(value) === normalizedFullName) ||
+            (normalizedEmail && normalize(value) === normalizedEmail);
+
+          if (textMatches(candidate.id)) return true;
+          if (textMatches(candidate.name)) return true;
+          if (textMatches(candidate.email)) return true;
+          if (textMatches(candidate.user?.fullName)) return true;
+          if (textMatches(candidate.user?.email)) return true;
+        }
+
+        return false;
+      };
+
+      const myCrew = crews.find((crew) => {
+        const members = crew.members as Array<string | Record<string, any>> | null;
+        if (!Array.isArray(members)) {
+          return false;
+        }
+        return members.some((member) => matchesMember(member));
       });
 
       if (!myCrew) {
-        return Result.error(new Error('User is not assigned to any crew'));
+        if (userRecord) {
+          const autoCrewName =
+            (userRecord.fullName && userRecord.fullName.trim()) ||
+            userRecord.email ||
+            `Cuadrilla-${userId.substring(0, 6)}`;
+          const autoMembers = [
+            {
+              id: userRecord.id,
+              name: userRecord.fullName || autoCrewName,
+              email: userRecord.email,
+              role: 'LEADER',
+            },
+          ];
+
+          const autoCrew = await prisma.crew.create({
+            data: {
+              name: autoCrewName,
+              members: autoMembers,
+              zona: userRecord.zone || 'Sin zona definida',
+              state: 'desocupado',
+              availability: 'AVAILABLE',
+              progress: 0,
+              notes: 'Auto-creada al detectar usuario CREW sin cuadrilla asignada',
+            },
+          });
+
+          logger.warn(`Auto-created crew ${autoCrew.id} for user ${userId}`);
+          return Result.ok(autoCrew);
+        }
+
+        return Result.error(new NotFoundException('User is not assigned to any crew'));
       }
 
       return Result.ok(myCrew);

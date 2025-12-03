@@ -153,3 +153,4 @@ Esto es más limpio, claro y seguro.
 **Recomendación Final**: ✅ Mantener el flujo actual (sin suscripción automática)
 
 
+

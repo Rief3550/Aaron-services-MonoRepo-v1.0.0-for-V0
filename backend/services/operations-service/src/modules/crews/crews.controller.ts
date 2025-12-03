@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 
@@ -29,7 +30,12 @@ export class CrewsController {
   @Get('me')
   @Roles('CREW', 'OPERATOR', 'ADMIN')
   async getMyCrew(@User() user: any) {
-    return this.crewsService.findByMember(user.userId);
+    if (!user?.userId) {
+      throw new UnauthorizedException('Invalid crew session');
+    }
+    const result = await this.crewsService.findByMember(user.userId);
+    if (Result.isError(result)) throw result.error;
+    return Result.unwrap(result);
   }
 
   @Get()

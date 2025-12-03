@@ -230,3 +230,4 @@ Basado en `CreateManualClientModal.tsx`, el componente debe tener:
 **Estado Frontend:** ⏳ PENDIENTE
 
 
+

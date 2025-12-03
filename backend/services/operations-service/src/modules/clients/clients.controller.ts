@@ -1,3 +1,4 @@
+import { Result } from '@aaron/common';
 import {
   Controller,
   Get,
@@ -8,6 +9,7 @@ import {
   Query,
   UseGuards,
   Headers,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import {
@@ -24,10 +26,14 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/user.decorator';
+import { CrewsService } from '../crews/crews.service';
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly crewsService: CrewsService,
+  ) {}
 
   /**
    * Endpoint interno para crear cliente desde auth-service
@@ -82,7 +88,29 @@ export class ClientsController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMyProfile(@CurrentUser() user: { userId: string }) {
+  async getMyProfile(@CurrentUser() user: any) {
+    if (!user?.userId) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (this.isCrewOnly(user)) {
+      const crewResult = await this.crewsService.findByMember(user.userId);
+      if (Result.isError(crewResult)) throw crewResult.error;
+      const crew = Result.unwrap(crewResult);
+      return {
+        isCrew: true,
+        crewId: crew.id,
+        name: crew.name,
+        state: crew.state,
+        availability: crew.availability,
+        progress: crew.progress,
+        lat: crew.lat,
+        lng: crew.lng,
+        members: crew.members,
+        updatedAt: crew.updatedAt,
+      };
+    }
+
     return this.clientsService.findByUserId(user.userId);
   }
 
@@ -92,7 +120,32 @@ export class ClientsController {
    */
   @Get('me/status')
   @UseGuards(JwtAuthGuard)
-  async getMyStatus(@CurrentUser() user: { userId: string }) {
+  async getMyStatus(@CurrentUser() user: any) {
+    if (!user?.userId) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (this.isCrewOnly(user)) {
+      const crewResult = await this.crewsService.findByMember(user.userId);
+      if (Result.isError(crewResult)) throw crewResult.error;
+      const crew = Result.unwrap(crewResult);
+      const canOperate = crew.state !== 'offline';
+
+      return {
+        isCrew: true,
+        crewId: crew.id,
+        estado: (crew.state || 'ACTIVO').toUpperCase(),
+        canOperate,
+        message: canOperate
+          ? 'Tu cuadrilla está activa y puede operar.'
+          : 'Tu cuadrilla no está disponible en este momento.',
+        lat: crew.lat,
+        lng: crew.lng,
+        updatedAt: crew.updatedAt,
+        lastReviewAt: crew.lastLocationAt,
+      };
+    }
+
     return this.clientsService.getStatusByUserId(user.userId);
   }
 
@@ -212,5 +265,14 @@ export class ClientsController {
     @CurrentUser() user: { userId: string },
   ) {
     return this.clientsService.approveClient(id, dto, user.userId);
+  }
+
+  private isCrewOnly(user: any): boolean {
+    const roles = Array.isArray(user?.roles)
+      ? user.roles
+          .map((role: string) => (typeof role === 'string' ? role.toUpperCase() : undefined))
+          .filter((role): role is string => Boolean(role))
+      : [];
+    return roles.includes('CREW') && !roles.includes('CUSTOMER');
   }
 }

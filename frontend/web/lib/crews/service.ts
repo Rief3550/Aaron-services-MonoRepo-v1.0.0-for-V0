@@ -5,12 +5,12 @@
  */
 
 import { opsApi } from '../api/services';
-import type { Crew } from './types';
+import type { Crew, CrewMember } from './types';
 export type { Crew };
 
 export interface CreateCrewDto {
   name: string;
-  members?: Array<{ id: string }> | string[];
+  members?: Array<CrewMember | string>;
   zona?: string;
   notes?: string;
   availability?: string;
@@ -18,7 +18,7 @@ export interface CreateCrewDto {
 
 export interface UpdateCrewDto {
   name?: string;
-  members?: Array<{ id: string }> | string[];
+  members?: Array<CrewMember | string>;
   state?: string;
   progress?: number;
   zona?: string;
@@ -94,4 +94,3 @@ export async function deleteCrew(id: string): Promise<void> {
   // Por ahora asumimos que no, pero dejamos la función por consistencia
   throw new Error('Delete crew not implemented in backend');
 }
-

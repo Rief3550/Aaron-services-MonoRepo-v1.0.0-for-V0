@@ -1,14 +1,23 @@
 /**
  * Crew Form Component
  * Presentation layer - Formulario de creación/edición de cuadrillas
- * Estructura simplificada, replicable desde usuarios
+ * Permite vincular usuarios con rol CREW mediante un selector
+ * y opcionalmente agregar entradas manuales (backward compatibility)
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { createCrew, updateCrew, fetchCrewById, type Crew, type CreateCrewDto, type UpdateCrewDto } from '@/lib/crews/service';
+import {
+  createCrew,
+  updateCrew,
+  fetchCrewById,
+  type Crew,
+  type CreateCrewDto,
+  type UpdateCrewDto,
+} from '@/lib/crews/service';
+import { fetchUsers, type User } from '@/lib/users/api';
 
 interface CrewFormProps {
   crew?: Crew;
@@ -18,7 +27,6 @@ interface CrewFormProps {
 
 interface FormData {
   name: string;
-  members: string[];
   zona: string;
   notes: string;
   availability: string;
@@ -29,38 +37,105 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    members: [],
     zona: '',
     notes: '',
     availability: 'AVAILABLE',
   });
-  const [memberInput, setMemberInput] = useState('');
+
+  const [crewUsers, setCrewUsers] = useState<User[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [manualMembers, setManualMembers] = useState<string[]>([]);
+  const [manualInput, setManualInput] = useState('');
+
+  useEffect(() => {
+    void loadCrewUsers();
+  }, []);
 
   useEffect(() => {
     if (crew) {
-      loadCrewData();
+      void loadCrewData();
+    } else {
+      resetForm();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crew]);
+
+  const loadCrewUsers = async () => {
+    setLoadingMembers(true);
+    setMembersError(null);
+    try {
+      const users = await fetchUsers();
+      const crewOnly = users.filter((user) =>
+        user.roles?.some((role) => role.name === 'CREW')
+      );
+      setCrewUsers(crewOnly);
+    } catch (error) {
+      console.error('Error loading crew users:', error);
+      setMembersError('Error al cargar usuarios con rol Cuadrilla');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
   const loadCrewData = async () => {
     if (!crew?.id) return;
     try {
       const crewData = await fetchCrewById(crew.id);
-      const members = crewData.members || [];
-      const memberIds = Array.isArray(members)
-        ? members.map((m) => (typeof m === 'string' ? m : m.id || ''))
-        : [];
+      const rawMembers = crewData.members || [];
+      const nextSelected: string[] = [];
+      const nextManual: string[] = [];
+
+      rawMembers.forEach((member) => {
+        if (typeof member === 'string') {
+          nextManual.push(member);
+          return;
+        }
+
+        if (member && typeof member === 'object') {
+          const candidate = member as {
+            id?: string;
+            userId?: string;
+            user?: { id?: string };
+            name?: string;
+            email?: string;
+          };
+
+          const resolvedId = candidate.id || candidate.userId || candidate.user?.id;
+          if (resolvedId) {
+            nextSelected.push(resolvedId);
+            return;
+          }
+
+          // No había ID. Mantener texto para no perder data.
+          nextManual.push(candidate.name || candidate.email || '');
+        }
+      });
 
       setFormData({
         name: crewData.name || '',
-        members: memberIds,
         zona: crewData.zona || '',
         notes: crewData.notes || '',
         availability: crewData.availability || 'AVAILABLE',
       });
+      setSelectedUserIds(Array.from(new Set(nextSelected)));
+      setManualMembers(nextManual.filter(Boolean));
     } catch (err) {
       console.error('Error loading crew data:', err);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      zona: '',
+      notes: '',
+      availability: 'AVAILABLE',
+    });
+    setSelectedUserIds([]);
+    setManualMembers([]);
+    setErrors({});
   };
 
   const validate = (): boolean => {
@@ -83,29 +158,41 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
 
     setLoading(true);
     try {
-      const memberObjects = formData.members.map((id) => ({ id }));
+      const memberObjects = selectedUserIds.map((userId) => {
+        const user = crewUsers.find((u) => u.id === userId);
+        return {
+          id: userId,
+          name: user?.fullName,
+          email: user?.email,
+        };
+      });
+
+      const manualEntries = manualMembers
+        .map((member) => member.trim())
+        .filter(Boolean);
+
+      const membersPayload: Array<{ id: string; name?: string; email?: string } | string> = [
+        ...memberObjects,
+        ...manualEntries,
+      ];
 
       if (crew) {
-        // Actualizar
         const updateData: UpdateCrewDto = {
           name: formData.name,
-          members: memberObjects,
+          members: membersPayload,
           zona: formData.zona || undefined,
           notes: formData.notes || undefined,
           availability: formData.availability || undefined,
         };
-
         await updateCrew(crew.id, updateData);
       } else {
-        // Crear
         const createData: CreateCrewDto = {
           name: formData.name,
-          members: memberObjects,
+          members: membersPayload,
           zona: formData.zona || undefined,
           notes: formData.notes || undefined,
           availability: formData.availability || undefined,
         };
-
         await createCrew(createData);
       }
 
@@ -119,22 +206,30 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
     }
   };
 
-  const addMember = () => {
-    if (memberInput.trim() && !formData.members.includes(memberInput.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        members: [...prev.members, memberInput.trim()],
-      }));
-      setMemberInput('');
-    }
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
   };
 
-  const removeMember = (memberId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      members: prev.members.filter((id) => id !== memberId),
-    }));
+  const addManualMember = () => {
+    const value = manualInput.trim();
+    if (!value) return;
+    if (!manualMembers.includes(value)) {
+      setManualMembers((prev) => [...prev, value]);
+    }
+    setManualInput('');
   };
+
+  const removeManualMember = (member: string) => {
+    setManualMembers((prev) => prev.filter((item) => item !== member));
+  };
+
+  const selectedUsers = useMemo(() => {
+    return selectedUserIds
+      .map((id) => crewUsers.find((user) => user.id === id))
+      .filter((user): user is User => Boolean(user));
+  }, [selectedUserIds, crewUsers]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -145,7 +240,6 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Nombre */}
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
             Nombre de la Cuadrilla <span className="text-red-500">*</span>
@@ -164,14 +258,14 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
                 });
               }
             }}
-            className={`w-full rounded-md border px-3 py-2 text-sm ${errors.name ? 'border-red-300' : 'border-gray-300'
-              } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
+              errors.name ? 'border-red-300' : 'border-gray-300'
+            } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
             placeholder="Cuadrilla Alpha"
           />
           {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
         </div>
 
-        {/* Zona */}
         <div>
           <label htmlFor="zona" className="block text-sm font-medium text-gray-700 mb-1">
             Zona
@@ -186,7 +280,6 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
           />
         </div>
 
-        {/* Disponibilidad */}
         <div>
           <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-1">
             Disponibilidad
@@ -204,96 +297,119 @@ export function CrewForm({ crew, onSuccess, onCancel }: CrewFormProps) {
         </div>
       </div>
 
-      {/* Miembros */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Miembros (IDs de usuarios)
-        </label>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={memberInput}
-            onChange={(e) => setMemberInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addMember();
-              }
-            }}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder="ID del usuario"
-          />
-          <Button
-            text="Agregar"
-            onClick={() => addMember()}
-            variant="secondary"
-            size="sm"
-            type="button"
-          />
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Usuarios con rol Cuadrilla
+          </label>
+          {membersError && <p className="text-sm text-red-600 mb-2">{membersError}</p>}
+          <div className="rounded-md border border-gray-200 max-h-60 overflow-y-auto divide-y divide-gray-100">
+            {loadingMembers ? (
+              <div className="p-4 text-sm text-gray-500">Cargando usuarios...</div>
+            ) : crewUsers.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500">
+                No hay usuarios con rol Cuadrilla disponibles
+              </div>
+            ) : (
+              crewUsers.map((user) => {
+                const selected = selectedUserIds.includes(user.id);
+                return (
+                  <label
+                    key={user.id}
+                    className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleUserSelection(user.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.fullName || user.email}
+                      </p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
         </div>
-        {formData.members.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {formData.members.map((memberId) => (
-              <span
-                key={memberId}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-              >
-                {memberId}
-                <button
-                  type="button"
-                  onClick={() => removeMember(memberId)}
-                  className="text-blue-600 hover:text-blue-900"
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Agregar miembro manual (opcional)
+          </label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addManualMember();
+                }
+              }}
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Ej: Juan Pérez"
+            />
+            <Button type="button" text="Agregar" onClick={addManualMember} variant="secondary" />
+          </div>
+
+          {manualMembers.length > 0 ? (
+            <div className="space-y-2">
+              {manualMembers.map((member) => (
+                <div
+                  key={member}
+                  className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2"
                 >
-                  ×
-                </button>
-              </span>
-            ))}
+                  <span className="text-sm text-gray-700">{member}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeManualMember(member)}
+                    className="text-sm text-red-600 hover:text-red-800"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">No hay miembros manuales</p>
+          )}
+        </div>
+
+        {selectedUsers.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">Miembros seleccionados</p>
+            <div className="flex flex-wrap gap-2">
+              {selectedUsers.map((user) => (
+                <span
+                  key={user.id}
+                  className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-800"
+                >
+                  {user.fullName || user.email}
+                  <button
+                    type="button"
+                    onClick={() => toggleUserSelection(user.id)}
+                    className="ml-2 text-blue-500 hover:text-blue-700"
+                    aria-label={`Quitar ${user.fullName || user.email}`}
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Notas */}
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-          Notas
-        </label>
-        <textarea
-          id="notes"
-          value={formData.notes}
-          onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-          rows={3}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          placeholder="Notas adicionales sobre la cuadrilla"
-        />
-      </div>
-
-      {/* Botones */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button
-          text="Cancelar"
-          onClick={onCancel}
-          variant="secondary"
-          disabled={loading}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>Guardando...</span>
-            </>
-          ) : (
-            <span>{crew ? 'Actualizar Cuadrilla' : 'Crear Cuadrilla'}</span>
-          )}
-        </button>
+      <div className="flex justify-end gap-3">
+        <Button type="button" text="Cancelar" onClick={onCancel} variant="secondary" />
+        <Button type="submit" text={loading ? 'Guardando...' : crew ? 'Actualizar' : 'Crear'} disabled={loading} />
       </div>
     </form>
   );
 }
-

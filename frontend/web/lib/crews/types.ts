@@ -4,10 +4,18 @@
  * Estructura replicable desde usuarios
  */
 
+export interface CrewMember {
+  id?: string;
+  name?: string;
+  email?: string;
+  userId?: string;
+  user?: { id?: string; fullName?: string; email?: string };
+}
+
 export interface Crew {
   id: string;
   name: string;
-  members?: Array<{ id: string; name?: string }> | string[];
+  members?: Array<CrewMember | string>;
   state: string; // 'desocupado', 'ocupado', etc.
   progress?: number; // 0-100
   zona?: string;
@@ -52,4 +60,3 @@ export interface CrewFormData {
   notes?: string;
   availability?: string;
 }
-

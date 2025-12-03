@@ -915,7 +915,7 @@ class AuthInterceptor extends Interceptor {
 6. **Timeline**: Todas las órdenes tienen un timeline de eventos
 7. **Roles**: Verificar el rol del usuario después del login para mostrar vistas apropiadas
 
----
+---                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
 ## 🚀 PRÓXIMOS PASOS PARA FLUTTER
 

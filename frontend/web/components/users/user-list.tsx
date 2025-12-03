@@ -57,6 +57,34 @@ export function UserList({ onEdit, refreshKey }: UserListProps) {
   // Configuración de columnas para DataTable
   const columns: TableColumn<User>[] = [
     {
+      key: 'id',
+      label: 'ID',
+      sortable: true,
+      render: (user) => (
+        <div className="flex items-center gap-2">
+          <code
+            className="text-xs text-gray-500 truncate max-w-[140px]"
+            title={user.id}
+          >
+            {user.id}
+          </code>
+          <button
+            type="button"
+            onClick={() => {
+              if (navigator?.clipboard) {
+                void navigator.clipboard.writeText(user.id).catch(() => {
+                  /* ignore clipboard errors */
+                });
+              }
+            }}
+            className="text-xs text-blue-600 hover:text-blue-800"
+          >
+            Copiar
+          </button>
+        </div>
+      ),
+    },
+    {
       key: 'fullName',
       label: 'Nombre Completo',
       sortable: true,

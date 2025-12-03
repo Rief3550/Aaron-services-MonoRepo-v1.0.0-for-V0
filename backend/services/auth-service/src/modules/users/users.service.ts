@@ -10,8 +10,9 @@ import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 export class UsersService {
   async create(dto: CreateUserDto): Promise<Result<Error, any>> {
     try {
+      const normalizedEmail = dto.email?.trim().toLowerCase();
       const data: any = {
-        email: dto.email,
+        email: normalizedEmail,
         fullName: dto.fullName,
         phone: dto.phone,
         zone: dto.zone,
@@ -108,7 +109,7 @@ export class UsersService {
       const user = await prisma.user.update({
         where: { id },
         data: {
-          ...(dto.email && { email: dto.email }),
+          ...(dto.email && { email: dto.email.trim().toLowerCase() }),
           ...(dto.fullName && { fullName: dto.fullName }),
           ...(dto.phone && { phone: dto.phone }),
           ...(dto.zone && { zone: dto.zone }),

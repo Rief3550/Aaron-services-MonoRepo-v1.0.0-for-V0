@@ -65,10 +65,11 @@ export class AuthService {
   }
 
   async signup(dto: SignupDto, ip?: string, userAgent?: string): Promise<Result<Error, AuthResult>> {
-    this.logger.log(`[AuthService] Signup started for: ${dto.email}`);
+    const normalizedEmail = this.normalizeEmail(dto.email);
+    this.logger.log(`[AuthService] Signup started for: ${normalizedEmail}`);
     try {
       const existingUser = await prisma.user.findUnique({
-        where: { email: dto.email },
+        where: { email: normalizedEmail },
       });
 
       if (existingUser) {
@@ -94,7 +95,7 @@ export class AuthService {
       // Crear usuario con rol CUSTOMER por defecto
       const user = await prisma.user.create({
         data: {
-          email: dto.email,
+          email: normalizedEmail,
           passwordHash,
           fullName: dto.fullName,
           roles: {
@@ -155,8 +156,9 @@ export class AuthService {
 
   async signin(dto: SigninDto, ip?: string, userAgent?: string): Promise<Result<Error, AuthResult>> {
     try {
+      const normalizedEmail = this.normalizeEmail(dto.email);
       const user = await prisma.user.findUnique({
-        where: { email: dto.email },
+        where: { email: normalizedEmail },
         include: { roles: true },
       });
 
@@ -257,11 +259,12 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<Result<Error, void>> {
     try {
-      const user = await prisma.user.findUnique({ where: { email } });
+      const normalizedEmail = this.normalizeEmail(email);
+      const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
       if (!user) return Result.ok(undefined); // Don't reveal if user exists
 
       const resetToken = this.generateUUID();
-      await this.emailService.sendResetPasswordEmail(email, user.id, resetToken);
+      await this.emailService.sendResetPasswordEmail(normalizedEmail, user.id, resetToken);
 
       return Result.ok(undefined);
     } catch (error) {
@@ -324,9 +327,14 @@ export class AuthService {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  private normalizeEmail(email: string): string {
+    return email?.trim().toLowerCase();
+  }
+
   async verifyEmail(dto: { token?: string; code?: string; email?: string }): Promise<Result<Error, { verified: boolean; userId: string; email: string; isEmailVerified: boolean }>> {
     try {
-      const { token, code, email } = dto;
+      const { token, code } = dto;
+      const normalizedEmail = dto.email ? this.normalizeEmail(dto.email) : undefined;
 
       if (!token && !code) {
         return Result.error(new Error('Token or code is required'));
@@ -338,8 +346,8 @@ export class AuthService {
         status: { in: ['SENT', 'DELIVERED'] },
       };
 
-      if (email) {
-        whereClause.email = email;
+      if (normalizedEmail) {
+        whereClause.email = normalizedEmail;
       }
 
       const audits = await prisma.emailAudit.findMany({
