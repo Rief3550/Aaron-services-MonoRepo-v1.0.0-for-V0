@@ -32,6 +32,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: '',
     fullName: '',
@@ -110,30 +111,33 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
 
     setLoading(true);
     try {
+      const trimmedEmail = formData.email.trim().toLowerCase();
+      const trimmedName = formData.fullName.trim();
+      const trimmedPhone = formData.phone.trim();
+      const trimmedZone = formData.zone.trim();
+      const trimmedPassword = formData.password.trim();
+
       if (user) {
-        // Actualizar
         const updateData: UpdateUserDto = {
-          email: formData.email,
-          fullName: formData.fullName,
-          phone: formData.phone || undefined,
-          zone: formData.zone || undefined,
+          email: trimmedEmail,
+          fullName: trimmedName,
+          phone: trimmedPhone,
+          zone: trimmedZone,
           roleIds: formData.roleIds,
         };
-        
-        // Solo incluir password si se proporcionó
-        if (formData.password.trim()) {
-          updateData.password = formData.password;
+
+        if (trimmedPassword) {
+          updateData.password = trimmedPassword;
         }
 
         await updateUser(user.id, updateData);
       } else {
-        // Crear
         const createData: CreateUserDto = {
-          email: formData.email,
-          fullName: formData.fullName,
-          password: formData.password,
-          phone: formData.phone || undefined,
-          zone: formData.zone || undefined,
+          email: trimmedEmail,
+          fullName: trimmedName,
+          password: trimmedPassword,
+          phone: trimmedPhone || undefined,
+          zone: trimmedZone || undefined,
           roleIds: formData.roleIds,
         };
 
@@ -257,14 +261,14 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         </div>
 
         {/* Contraseña */}
-        <div>
+        <div className="relative">
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
             Contraseña {!user && <span className="text-red-500">*</span>}
             {user && <span className="text-gray-500 text-xs">(dejar vacío para mantener la actual)</span>}
           </label>
           <input
             id="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={formData.password}
             onChange={(e) => {
               setFormData((prev) => ({ ...prev, password: e.target.value }));
@@ -281,6 +285,41 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
             } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
             placeholder={user ? 'Nueva contraseña (opcional)' : 'Mínimo 8 caracteres'}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="h-5 w-5"
+            >
+              {showPassword ? (
+                <>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.244 18 12 18c1.41 0 2.67-.184 3.79-.502M6.228 6.228A10.451 10.451 0 0112 6c5.756 0 8.774 2.662 10.066 6-.325.888-.77 1.712-1.312 2.454M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                </>
+              ) : (
+                <>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M1.934 12C3.226 8.662 6.244 6 12 6c5.756 0 8.774 2.662 10.066 6-1.292 3.338-4.31 6-10.066 6-5.756 0-8.774-2.662-10.066-6z"
+                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </>
+              )}
+            </svg>
+          </button>
           <ErrorMessage message={errors.password} variant="inline" className="mt-1" />
         </div>
       </div>

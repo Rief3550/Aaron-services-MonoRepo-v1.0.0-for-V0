@@ -255,8 +255,6 @@ export class ClientsService {
       select: {
         id: true,
         estado: true,
-        lat: true,
-        lng: true,
         updatedAt: true,
         fechaVisitaAuditoria: true,
       },
@@ -284,8 +282,6 @@ export class ClientsService {
       estado: client.estado,
       canOperate: client.estado === EstadoCliente.ACTIVO,
       message: estadoMessages[client.estado] || estadoMessages[EstadoCliente.PENDIENTE],
-      lat: client.lat,
-      lng: client.lng,
       updatedAt: client.updatedAt,
       lastReviewAt: client.fechaVisitaAuditoria,
     };

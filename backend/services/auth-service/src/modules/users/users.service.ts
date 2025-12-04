@@ -1,6 +1,7 @@
 import { Result } from '@aaron/common';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import type { Prisma } from '@aaron/prisma-client-auth';
 
 import { prisma } from '../../config/database';
 
@@ -106,19 +107,43 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto): Promise<Result<Error, any>> {
     try {
+      const updateData: Prisma.UserUpdateInput = {};
+
+      if (dto.email !== undefined) {
+        updateData.email = dto.email.trim().toLowerCase();
+      }
+
+      if (dto.fullName !== undefined) {
+        const trimmedName = dto.fullName.trim();
+        updateData.fullName = trimmedName.length ? trimmedName : null;
+      }
+
+      if (dto.phone !== undefined) {
+        const normalizedPhone = dto.phone.trim();
+        updateData.phone = normalizedPhone.length ? normalizedPhone : null;
+      }
+
+      if (dto.zone !== undefined) {
+        const normalizedZone = dto.zone.trim();
+        updateData.zone = normalizedZone.length ? normalizedZone : null;
+      }
+
+      if (dto.password !== undefined) {
+        const trimmedPassword = dto.password.trim();
+        if (trimmedPassword.length) {
+          updateData.passwordHash = await bcrypt.hash(trimmedPassword, 10);
+        }
+      }
+
+      if (dto.roleIds !== undefined) {
+        updateData.roles = {
+          set: dto.roleIds.map((roleId) => ({ id: roleId })),
+        };
+      }
+
       const user = await prisma.user.update({
         where: { id },
-        data: {
-          ...(dto.email && { email: dto.email.trim().toLowerCase() }),
-          ...(dto.fullName && { fullName: dto.fullName }),
-          ...(dto.phone && { phone: dto.phone }),
-          ...(dto.zone && { zone: dto.zone }),
-          ...(dto.roleIds && {
-            roles: {
-              set: dto.roleIds.map((roleId) => ({ id: roleId })),
-            },
-          }),
-        },
+        data: updateData,
         include: { roles: true },
       });
 

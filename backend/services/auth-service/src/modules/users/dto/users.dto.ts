@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsArray, IsUUID } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsArray, IsUUID, MinLength } from 'class-validator';
 
 export class CreateUserDto {
   @IsEmail()
@@ -43,6 +43,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   zone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
 
   @IsOptional()
   @IsArray()

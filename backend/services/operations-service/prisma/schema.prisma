@@ -858,7 +858,9 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Relaciones de Auth (omitidas sesiones y audits si no se usan aquí, pero roles es clave)
+  // Relaciones de Auth compartidas con el auth-service
+  sessions    Session[]
+  emailAudits EmailAudit[]
   
   @@map("users")
   @@schema("auth")
@@ -872,5 +874,41 @@ model Role {
   createdAt DateTime @default(now())
 
   @@map("roles")
+  @@schema("auth")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+  @@schema("auth")
+}
+
+model EmailAudit {
+  id        String   @id @default(uuid())
+  userId    String?
+  email     String
+  type      String
+  status    String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([email, type, createdAt])
+  @@map("email_audit")
   @@schema("auth")
 }
