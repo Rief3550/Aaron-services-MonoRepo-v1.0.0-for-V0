@@ -1,0 +1,8 @@
+Flujo Tracking
+
+work-orders.service.ts (líneas 420-510): cada vez que un operador cambia el estado de una orden, se guarda el evento y se publican mensajes en Redis mediante EventsService. Si el nuevo estado es PROGRAMADA, además de ORDER_STATUS se dispara ORDER_EN_CAMINO, que es la señal que enciende el tracking.
+ORDER_EN_CAMINO incluye orderId, crewId y la targetLocation (dirección/lat/lng del cliente). Esa data viaja por el canal Redis work_order_events hacia el tracking-service.
+events.service.ts escucha ese canal: al recibir ORDER_EN_CAMINO prepara las rooms order:{id} y crew:{id} en el WebSocket y emite order_en_camino a los clientes conectados. Ese evento es el disparador para que la app muestre la vista de mapa.
+TODAS las transiciones de estado publican ORDER_STATUS, así que el tracking-service también re-emite order_status en tiempo real. La app puede usarlo para mostrar el estado textual y decidir si sigue mostrando el mapa (por ejemplo, ocultarlo al recibir FINALIZADA o CANCELADA).
+Una vez activo el tracking, la cuadrilla envía su ubicación con location_update por WS (o POST /tracking/ping como respaldo). El tracking-service persiste cada ping (trackingService.savePing) y lo reenvía tanto a order:{orderId} como a crew:{crewId}, para que cliente y backoffice vean el movimiento.
+En resumen: el tracking se habilita automáticamente cuando la orden pasa a PROGRAMADA (porque en ese instante se publica ORDER_EN_CAMINO). Si necesitan activarlo en otro estado (por ejemplo EN_CAMINO o ASIGNADA), solo hay que ajustar la condición en changeState antes de llamar a publishWorkOrderEnCamino.
