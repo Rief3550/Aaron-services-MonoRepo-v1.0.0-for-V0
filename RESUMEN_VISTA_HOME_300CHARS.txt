@@ -1,0 +1,2 @@
+Documentación técnica de la vista Home/Dashboard del backoffice Aaron Services. Incluye arquitectura, componentes (KPI cards, gráficos, mapa, tabla órdenes), estructura visual, flujo de datos, endpoints, diseño responsive y permisos. Referencia para desarrolladores.
+
